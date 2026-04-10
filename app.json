@@ -14,21 +14,26 @@
       "backgroundColor": "#2d3e50"
     },
     "ios": {
+      "bundleIdentifier": "com.nyayasahayak.mobile",
       "supportsTablet": false,
       "deploymentTarget": "14.0",
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "We need your location to show nearby government offices and share in emergencies.",
-        "NSSpeechRecognitionUsageDescription": "Voice search lets you find rights and procedures by speaking.",
-        "NSMicrophoneUsageDescription": "Microphone access is needed for voice search."
+        "NSSpeechRecognitionUsageDescription": "Allow Nyaya Sahayak to use speech recognition for voice search.",
+        "NSMicrophoneUsageDescription": "Allow Nyaya Sahayak to use your microphone for voice search."
       }
     },
     "android": {
+      "package": "com.nyayasahayak.mobile",
       "minSdkVersion": 26,
       "permissions": [
         "ACCESS_FINE_LOCATION",
         "ACCESS_COARSE_LOCATION",
         "CALL_PHONE",
-        "RECORD_AUDIO"
+        "RECORD_AUDIO",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION"
       ]
     },
     "web": {
@@ -60,6 +65,12 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
-    }
+    },
+    "extra": {
+      "eas": {
+        "projectId": "f6b66eaa-45df-42d8-89a4-1bf4936d2114"
+      }
+    },
+    "owner": "s00k"
   }
 }
