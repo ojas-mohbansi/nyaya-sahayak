@@ -1,0 +1,65 @@
+{
+  "expo": {
+    "name": "Nyaya Sahayak",
+    "slug": "mobile",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/images/icon.png",
+    "scheme": "nyayasahayak",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/images/icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#2d3e50"
+    },
+    "ios": {
+      "supportsTablet": false,
+      "deploymentTarget": "14.0",
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "We need your location to show nearby government offices and share in emergencies.",
+        "NSSpeechRecognitionUsageDescription": "Voice search lets you find rights and procedures by speaking.",
+        "NSMicrophoneUsageDescription": "Microphone access is needed for voice search."
+      }
+    },
+    "android": {
+      "minSdkVersion": 26,
+      "permissions": [
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION",
+        "CALL_PHONE",
+        "RECORD_AUDIO"
+      ]
+    },
+    "web": {
+      "favicon": "./assets/images/icon.png"
+    },
+    "plugins": [
+      [
+        "expo-router",
+        {
+          "origin": "https://replit.com/"
+        }
+      ],
+      "expo-font",
+      "expo-web-browser",
+      [
+        "expo-speech-recognition",
+        {
+          "microphonePermission": "Allow Nyaya Sahayak to use your microphone for voice search.",
+          "speechRecognitionPermission": "Allow Nyaya Sahayak to use speech recognition for voice search."
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Allow Nyaya Sahayak to use your location to find nearby offices and share in emergencies."
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": true,
+      "reactCompiler": true
+    }
+  }
+}
