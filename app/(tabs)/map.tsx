@@ -27,10 +27,58 @@ import {
 } from "@/utils/regionalOfficesCache";
 import {
   estimateTileCount,
+  estimateTileCountForRegions,
   downloadOfflineTiles,
+  downloadOfflineTilesForRegions,
   getCachedTileCount,
   clearTileCache,
+  getLastDownloadedAt,
+  estimateDownloadBytes,
+  getFreeDiskBytes,
+  REGION_BBOX,
 } from "@/utils/tileCache";
+
+function formatMb(bytes: number): string {
+  return `${Math.max(1, Math.round(bytes / (1024 * 1024)))} MB`;
+}
+
+// Returns true if the user wants to proceed with the download.
+async function ensureEnoughStorage(tileCount: number): Promise<boolean> {
+  const needed = estimateDownloadBytes(tileCount);
+  // Require a 20% safety buffer on top of the estimate.
+  const requiredWithBuffer = Math.ceil(needed * 1.2);
+  const free = await getFreeDiskBytes();
+  if (free == null || free >= requiredWithBuffer) return true;
+  return new Promise<boolean>((resolve) => {
+    Alert.alert(
+      "Low storage",
+      `This download needs about ${formatMb(needed)}, but only ${formatMb(
+        free
+      )} is free on your device. Free up space to avoid a partial download.`,
+      [
+        { text: "Cancel", style: "cancel", onPress: () => resolve(false) },
+        { text: "Continue anyway", onPress: () => resolve(true) },
+      ],
+      { cancelable: false }
+    );
+  });
+}
+
+function formatRelativeTime(ts: number): string {
+  const diff = Date.now() - ts;
+  const min = Math.floor(diff / 60000);
+  if (min < 1) return "just now";
+  if (min < 60) return `${min}m ago`;
+  const hr = Math.floor(min / 60);
+  if (hr < 24) return `${hr}h ago`;
+  const d = Math.floor(hr / 24);
+  if (d < 30) return `${d}d ago`;
+  const mo = Math.floor(d / 30);
+  return `${mo}mo ago`;
+}
+
+const STD_MIN_ZOOM = 5;
+const STD_MAX_ZOOM = 10;
 
 const DOWNLOAD_PRESETS = [
   { label: "Overview (zoom 5–7)", minZoom: 5, maxZoom: 7 },
@@ -60,7 +108,16 @@ export default function MapScreen() {
     failed: number;
   } | null>(null);
   const [isDownloading, setIsDownloading] = useState(false);
+  const [lastDownloadedAt, setLastDownloadedAt] = useState<number | null>(null);
+  const [, setNowTick] = useState(0);
+  const [selectedRegions, setSelectedRegions] = useState<string[]>([]);
   const cancelRef = useRef({ cancelled: false });
+
+  const toggleRegion = useCallback((name: string) => {
+    setSelectedRegions((prev) =>
+      prev.includes(name) ? prev.filter((r) => r !== name) : [...prev, name]
+    );
+  }, []);
 
   const region = settings.region ?? "All";
 
@@ -112,18 +169,32 @@ export default function MapScreen() {
       const count = await getCachedTileCount();
       setCachedTileCount(count);
     }
+    const ts = await getLastDownloadedAt();
+    setLastDownloadedAt(ts);
   }, []);
 
   useEffect(() => {
     refreshCacheStats();
   }, [refreshCacheStats]);
 
+  // Re-render the relative time label every minute so it stays accurate.
+  useEffect(() => {
+    if (!lastDownloadedAt) return;
+    const id = setInterval(() => setNowTick((n) => n + 1), 60000);
+    return () => clearInterval(id);
+  }, [lastDownloadedAt]);
+
+  const stalePromptShownRef = useRef(false);
+
   const handleDownload = useCallback(
     async (minZoom: number, maxZoom: number) => {
       if (isDownloading) return;
+      const tileCount = estimateTileCount(minZoom, maxZoom);
+      const ok = await ensureEnoughStorage(tileCount);
+      if (!ok) return;
       cancelRef.current = { cancelled: false };
       setIsDownloading(true);
-      setDownloadProgress({ downloaded: 0, total: 0, failed: 0 });
+      setDownloadProgress({ downloaded: 0, total: tileCount, failed: 0 });
 
       try {
         await downloadOfflineTiles(
@@ -148,6 +219,83 @@ export default function MapScreen() {
     },
     [isDownloading, refreshCacheStats]
   );
+
+  const handleQuickRefresh = useCallback(async () => {
+    if (isDownloading || Platform.OS === "web") return;
+    const tileCount = estimateTileCount(STD_MIN_ZOOM, STD_MAX_ZOOM, region);
+    const ok = await ensureEnoughStorage(tileCount);
+    if (!ok) return;
+    cancelRef.current = { cancelled: false };
+    setIsDownloading(true);
+    setDownloadProgress({ downloaded: 0, total: tileCount, failed: 0 });
+    try {
+      await downloadOfflineTiles(
+        STD_MIN_ZOOM,
+        STD_MAX_ZOOM,
+        (downloaded, total, failed) => {
+          setDownloadProgress({ downloaded, total, failed });
+        },
+        cancelRef.current,
+        region
+      );
+      await refreshCacheStats();
+    } catch {}
+    setDownloadProgress(null);
+    setIsDownloading(false);
+  }, [isDownloading, region, refreshCacheStats]);
+
+  // Show a one-time prompt if the offline map is older than 30 days.
+  useEffect(() => {
+    if (
+      Platform.OS === "web" ||
+      !lastDownloadedAt ||
+      stalePromptShownRef.current ||
+      isDownloading
+    ) {
+      return;
+    }
+    const ageDays = (Date.now() - lastDownloadedAt) / (1000 * 60 * 60 * 24);
+    if (ageDays < 30) return;
+    stalePromptShownRef.current = true;
+    const days = Math.floor(ageDays);
+    Alert.alert(
+      "Offline map is out of date",
+      `Your downloaded map is ${days} days old. Refresh it now to make sure your offline navigation is current.`,
+      [
+        { text: "Later", style: "cancel" },
+        { text: "Refresh now", onPress: () => handleQuickRefresh() },
+      ]
+    );
+  }, [lastDownloadedAt, isDownloading, handleQuickRefresh]);
+
+  const handleDownloadRegions = useCallback(async () => {
+    if (isDownloading || Platform.OS === "web") return;
+    if (selectedRegions.length === 0) return;
+    const tileCount = estimateTileCountForRegions(
+      STD_MIN_ZOOM,
+      STD_MAX_ZOOM,
+      selectedRegions
+    );
+    const ok = await ensureEnoughStorage(tileCount);
+    if (!ok) return;
+    cancelRef.current = { cancelled: false };
+    setIsDownloading(true);
+    setDownloadProgress({ downloaded: 0, total: tileCount, failed: 0 });
+    try {
+      await downloadOfflineTilesForRegions(
+        STD_MIN_ZOOM,
+        STD_MAX_ZOOM,
+        selectedRegions,
+        (downloaded, total, failed) => {
+          setDownloadProgress({ downloaded, total, failed });
+        },
+        cancelRef.current
+      );
+      await refreshCacheStats();
+    } catch {}
+    setDownloadProgress(null);
+    setIsDownloading(false);
+  }, [isDownloading, selectedRegions, refreshCacheStats]);
 
   const handleClearCache = useCallback(async () => {
     Alert.alert(
@@ -217,6 +365,43 @@ export default function MapScreen() {
                 {regionLabel}
               </Text>
             </View>
+            {Platform.OS !== "web" && lastDownloadedAt && (
+              <Pressable
+                onPress={handleQuickRefresh}
+                disabled={isDownloading}
+                hitSlop={6}
+                style={({ pressed }) => [
+                  styles.updatedBadge,
+                  { opacity: pressed || isDownloading ? 0.6 : 1 },
+                ]}
+              >
+                {isDownloading ? (
+                  <ActivityIndicator
+                    size="small"
+                    color="rgba(255,255,255,0.85)"
+                  />
+                ) : (
+                  <Feather
+                    name="refresh-cw"
+                    size={10}
+                    color="rgba(255,255,255,0.7)"
+                  />
+                )}
+                <Text style={styles.updatedBadgeText}>
+                  {isDownloading
+                    ? `Updating ${
+                        downloadProgress && downloadProgress.total > 0
+                          ? Math.round(
+                              (downloadProgress.downloaded /
+                                downloadProgress.total) *
+                                100
+                            )
+                          : 0
+                      }%`
+                    : `Map updated ${formatRelativeTime(lastDownloadedAt)}`}
+                </Text>
+              </Pressable>
+            )}
           </View>
           <View style={styles.headerActions}>
             {Platform.OS !== "web" && (
@@ -580,6 +765,103 @@ export default function MapScreen() {
 
                 <Text
                   style={[
+                    styles.sectionLabel,
+                    {
+                      color: colors.mutedForeground,
+                      fontSize: fs.xs,
+                      marginTop: 16,
+                    },
+                  ]}
+                >
+                  PICK STATES FOR OFFLINE USE
+                </Text>
+                <View style={styles.regionGrid}>
+                  {Object.keys(REGION_BBOX).map((name) => {
+                    const active = selectedRegions.includes(name);
+                    return (
+                      <Pressable
+                        key={name}
+                        onPress={() => toggleRegion(name)}
+                        style={[
+                          styles.regionChip,
+                          {
+                            backgroundColor: active
+                              ? colors.primary
+                              : colors.card,
+                            borderColor: active
+                              ? colors.primary
+                              : colors.border,
+                          },
+                        ]}
+                      >
+                        <Text
+                          style={{
+                            fontSize: fs.xs,
+                            fontFamily: "Inter_500Medium",
+                            color: active ? "#ffffff" : colors.foreground,
+                          }}
+                        >
+                          {name}
+                        </Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+                {selectedRegions.length > 0 && (
+                  <Pressable
+                    onPress={handleDownloadRegions}
+                    style={[
+                      styles.presetBtn,
+                      {
+                        backgroundColor: colors.primary,
+                        borderColor: colors.primary,
+                      },
+                    ]}
+                  >
+                    <View style={{ flex: 1 }}>
+                      <Text
+                        style={[
+                          styles.presetLabel,
+                          { color: "#ffffff", fontSize: fs.sm },
+                        ]}
+                      >
+                        Download {selectedRegions.length} state
+                        {selectedRegions.length === 1 ? "" : "s"}
+                      </Text>
+                      <Text
+                        style={[
+                          styles.presetMeta,
+                          {
+                            color: "rgba(255,255,255,0.8)",
+                            fontSize: fs.xs,
+                          },
+                        ]}
+                      >
+                        ~
+                        {estimateTileCountForRegions(
+                          STD_MIN_ZOOM,
+                          STD_MAX_ZOOM,
+                          selectedRegions
+                        ).toLocaleString()}{" "}
+                        tiles · ~
+                        {Math.round(
+                          (estimateTileCountForRegions(
+                            STD_MIN_ZOOM,
+                            STD_MAX_ZOOM,
+                            selectedRegions
+                          ) *
+                            25) /
+                            1024
+                        )}{" "}
+                        MB
+                      </Text>
+                    </View>
+                    <Feather name="download" size={18} color="#ffffff" />
+                  </Pressable>
+                )}
+
+                <Text
+                  style={[
                     styles.infoNote,
                     {
                       color: colors.mutedForeground,
@@ -628,6 +910,25 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontFamily: "Inter_400Regular",
     color: "rgba(255,255,255,0.5)",
+  },
+  updatedBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    alignSelf: "flex-start",
+    gap: 4,
+    marginTop: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 10,
+    backgroundColor: "rgba(255,255,255,0.10)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.14)",
+  },
+  updatedBadgeText: {
+    fontSize: 10,
+    fontFamily: "Inter_500Medium",
+    color: "rgba(255,255,255,0.8)",
+    letterSpacing: 0.2,
   },
   headerActions: {
     flexDirection: "row",
@@ -803,5 +1104,17 @@ const styles = StyleSheet.create({
     fontFamily: "Inter_400Regular",
     lineHeight: 18,
     marginTop: 4,
+  },
+  regionGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 6,
+    marginBottom: 8,
+  },
+  regionChip: {
+    borderWidth: 1,
+    borderRadius: 100,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
   },
 });

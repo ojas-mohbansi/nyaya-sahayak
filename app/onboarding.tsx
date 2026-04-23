@@ -2,9 +2,10 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { LinearGradient } from "expo-linear-gradient";
 import * as Location from "expo-location";
 import { router } from "expo-router";
-import React, { useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   Animated,
   Platform,
   Pressable,
@@ -22,7 +23,9 @@ import { detectRegionFromCoords } from "@/data/offices";
 import { saveRegionalOffices } from "@/utils/regionalOfficesCache";
 import {
   downloadOfflineTiles,
+  estimateDownloadBytes,
   estimateTileCount,
+  getFreeDiskBytes,
 } from "@/utils/tileCache";
 
 /* ── Onboarding string translations for all 15 languages ──── */
@@ -395,9 +398,7 @@ type Step = "language" | "slides" | "location" | "mapDownload";
 type SlideIndex = 0 | 1 | 2;
 
 const STD_MIN_ZOOM = 5;
-const STD_MAX_ZOOM = 8;
-const STD_TILE_COUNT = estimateTileCount(STD_MIN_ZOOM, STD_MAX_ZOOM);
-const STD_SIZE_MB = Math.round((STD_TILE_COUNT * 25) / 1024);
+const STD_MAX_ZOOM = 10;
 
 export default function OnboardingScreen() {
   const colors = useColors();
@@ -409,12 +410,20 @@ export default function OnboardingScreen() {
   const [selectedLang, setSelectedLang] = useState<Language>("English");
   const [locLoading, setLocLoading] = useState(false);
   const [detectedRegion, setDetectedRegion] = useState("India");
+  const [detectedRegionKey, setDetectedRegionKey] = useState<string>("All");
   const [isDownloading, setIsDownloading] = useState(false);
   const [downloadDone, setDownloadDone] = useState(false);
   const [downloadProgress, setDownloadProgress] = useState<{
     downloaded: number; total: number; failed: number;
   } | null>(null);
   const cancelRef = useRef({ cancelled: false });
+  const downloadStartedRef = useRef(false);
+
+  const stdTileCount = useMemo(
+    () => estimateTileCount(STD_MIN_ZOOM, STD_MAX_ZOOM, detectedRegionKey),
+    [detectedRegionKey]
+  );
+  const stdSizeMb = Math.max(1, Math.round((stdTileCount * 25) / 1024));
 
   const fadeAnim = useRef(new Animated.Value(1)).current;
 
@@ -442,10 +451,10 @@ export default function OnboardingScreen() {
   };
 
   const goToMapDownload = async (
-    regionName: string,
+    regionKey: string,
     coords?: { latitude: number; longitude: number }
   ) => {
-    let displayName = regionName !== "All" ? regionName : "India";
+    let displayName = regionKey !== "All" ? regionKey : "India";
     if (coords) {
       try {
         const results = await Location.reverseGeocodeAsync(coords);
@@ -457,6 +466,7 @@ export default function OnboardingScreen() {
       } catch {}
     }
     setDetectedRegion(displayName);
+    setDetectedRegionKey(regionKey);
     setLocLoading(false);
     fade(() => setStep("mapDownload"));
   };
@@ -490,36 +500,53 @@ export default function OnboardingScreen() {
     } catch {}
     setSettings({ region });
     await saveRegionalOffices(region);
-    if (Platform.OS !== "web") {
-      await goToMapDownload(region, coords);
-    } else {
-      await finish();
-    }
+    await goToMapDownload(region, coords);
   };
 
   const skipLocation = async () => {
     setSettings({ region: "All" });
     await saveRegionalOffices("All");
-    if (Platform.OS !== "web") {
-      await goToMapDownload("All");
-    } else {
-      await finish();
-    }
+    await goToMapDownload("All");
   };
 
-  const handleMapDownload = async () => {
+  const handleMapDownload = async (regionKey: string) => {
     if (isDownloading) return;
+    const total = estimateTileCount(STD_MIN_ZOOM, STD_MAX_ZOOM, regionKey);
+    const free = await getFreeDiskBytes();
+    const needed = estimateDownloadBytes(total);
+    if (free != null && free < Math.ceil(needed * 1.2)) {
+      const proceed = await new Promise<boolean>((resolve) => {
+        const mb = (n: number) =>
+          `${Math.max(1, Math.round(n / (1024 * 1024)))} MB`;
+        Alert.alert(
+          "Low storage",
+          `The offline map needs about ${mb(needed)} but only ${mb(
+            free
+          )} is free. You can skip the download and add it later from the Map screen.`,
+          [
+            { text: "Skip", style: "cancel", onPress: () => resolve(false) },
+            { text: "Download anyway", onPress: () => resolve(true) },
+          ],
+          { cancelable: false }
+        );
+      });
+      if (!proceed) {
+        await finish();
+        return;
+      }
+    }
     cancelRef.current = { cancelled: false };
     setIsDownloading(true);
-    setDownloadProgress({ downloaded: 0, total: STD_TILE_COUNT, failed: 0 });
+    setDownloadProgress({ downloaded: 0, total, failed: 0 });
     try {
       await downloadOfflineTiles(
         STD_MIN_ZOOM,
         STD_MAX_ZOOM,
-        (downloaded, total, failed) => {
-          setDownloadProgress({ downloaded, total, failed });
+        (downloaded, t, failed) => {
+          setDownloadProgress({ downloaded, total: t, failed });
         },
-        cancelRef.current
+        cancelRef.current,
+        regionKey
       );
       if (!cancelRef.current.cancelled) {
         setDownloadDone(true);
@@ -528,6 +555,20 @@ export default function OnboardingScreen() {
     setIsDownloading(false);
     await finish();
   };
+
+  // Auto-start the regional OSM tile download as soon as we land on the
+  // mapDownload step (i.e. immediately after the user's region is detected).
+  useEffect(() => {
+    if (
+      step === "mapDownload" &&
+      !downloadStartedRef.current &&
+      Platform.OS !== "web"
+    ) {
+      downloadStartedRef.current = true;
+      handleMapDownload(detectedRegionKey);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [step, detectedRegionKey]);
 
   const finish = async () => {
     await markOnboarded();
@@ -562,7 +603,7 @@ export default function OnboardingScreen() {
           <MapDownloadStep
             s={s}
             regionName={detectedRegion}
-            sizeMb={STD_SIZE_MB}
+            sizeMb={stdSizeMb}
             isDownloading={isDownloading}
             downloadDone={downloadDone}
             downloadProgress={downloadProgress}
@@ -642,7 +683,7 @@ export default function OnboardingScreen() {
         {step === "mapDownload" && !isDownloading && !downloadDone && (
           <View style={styles.locFooter}>
             <Pressable
-              onPress={handleMapDownload}
+              onPress={() => handleMapDownload(detectedRegionKey)}
               style={({ pressed }) => [styles.btn, { opacity: pressed ? 0.82 : 1 }]}
             >
               <Text style={styles.btnText}>{s.downloadNow}</Text>
