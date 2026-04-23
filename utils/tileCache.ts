@@ -2,6 +2,8 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as FileSystem from "expo-file-system";
 import { Platform } from "react-native";
 
+import { STATE_BBOX } from "@/data/offices";
+
 export const TILE_BASE_PATH = (FileSystem.documentDirectory ?? "") + "tiles/";
 
 const LAST_DOWNLOADED_AT_KEY = "tileCache:lastDownloadedAt";
@@ -93,22 +95,15 @@ const INDIA_BBOX: BBox = {
   lngMax: 99.0,
 };
 
-export const REGION_BBOX: Record<string, BBox> = {
-  Delhi:           { latMin: 28.4,  latMax: 28.95, lngMin: 76.8,  lngMax: 77.45 },
-  Maharashtra:     { latMin: 15.6,  latMax: 22.1,  lngMin: 72.6,  lngMax: 80.9  },
-  Karnataka:       { latMin: 11.6,  latMax: 18.5,  lngMin: 74.0,  lngMax: 78.7  },
-  "Tamil Nadu":    { latMin: 8.0,   latMax: 13.6,  lngMin: 76.2,  lngMax: 80.4  },
-  Telangana:       { latMin: 15.8,  latMax: 19.9,  lngMin: 77.2,  lngMax: 81.4  },
-  Rajasthan:       { latMin: 22.0,  latMax: 28.3,  lngMin: 68.1,  lngMax: 74.5  },
-  "Madhya Pradesh":{ latMin: 23.0,  latMax: 27.5,  lngMin: 77.0,  lngMax: 84.5  },
-  "Andhra Pradesh":{ latMin: 17.0,  latMax: 20.0,  lngMin: 81.0,  lngMax: 85.0  },
-  Jharkhand:       { latMin: 22.0,  latMax: 27.2,  lngMin: 84.0,  lngMax: 87.5  },
-  Chhattisgarh:    { latMin: 20.0,  latMax: 26.5,  lngMin: 81.7,  lngMax: 84.4  },
-  "West Bengal":   { latMin: 23.6,  latMax: 27.5,  lngMin: 85.5,  lngMax: 88.2  },
-  "Uttar Pradesh": { latMin: 26.0,  latMax: 28.4,  lngMin: 77.4,  lngMax: 84.6  },
-  Punjab:          { latMin: 28.9,  latMax: 32.5,  lngMin: 73.9,  lngMax: 77.8  },
-  Uttarakhand:     { latMin: 28.9,  latMax: 31.5,  lngMin: 77.6,  lngMax: 81.0  },
-};
+// Derive region bounding boxes from the single source of truth in
+// data/offices.ts so every state/UT we ship offices for can also be
+// downloaded as a tight offline tile bundle (no fallback to all-India).
+export const REGION_BBOX: Record<string, BBox> = Object.fromEntries(
+  Object.entries(STATE_BBOX).map(([state, b]) => [
+    state,
+    { latMin: b.minLat, latMax: b.maxLat, lngMin: b.minLng, lngMax: b.maxLng },
+  ])
+);
 
 export function getRegionBBox(region?: string | null): BBox {
   if (region && REGION_BBOX[region]) return REGION_BBOX[region];
@@ -318,6 +313,41 @@ export async function downloadOfflineTilesForRegions(
   }
 
   return { downloaded, failed, total };
+}
+
+export interface RegionCoverage {
+  cached: number;
+  sampled: number;
+  ratio: number;
+}
+
+// Sample-based coverage check: tells the UI whether a region's tiles are
+// fully downloaded for offline use without scanning thousands of files.
+export async function getRegionOfflineCoverage(
+  region: string | null | undefined,
+  minZoom: number,
+  maxZoom: number,
+  maxSamples = 120
+): Promise<RegionCoverage> {
+  if (Platform.OS === "web") return { cached: 0, sampled: 0, ratio: 0 };
+  const bbox = getRegionBBox(region);
+  const all: TileCoord[] = [];
+  for (let z = minZoom; z <= maxZoom; z++) {
+    all.push(...getTilesForBBox(bbox, z));
+  }
+  if (all.length === 0) return { cached: 0, sampled: 0, ratio: 0 };
+  const step = Math.max(1, Math.floor(all.length / maxSamples));
+  const samples: TileCoord[] = [];
+  for (let i = 0; i < all.length; i += step) samples.push(all[i]);
+  let cached = 0;
+  for (const t of samples) {
+    if (await isTileCached(t.z, t.x, t.y)) cached++;
+  }
+  return {
+    cached,
+    sampled: samples.length,
+    ratio: samples.length === 0 ? 0 : cached / samples.length,
+  };
 }
 
 export async function getCachedTileCount(): Promise<number> {

@@ -24,6 +24,7 @@ import { useBookmarks } from "@/context/BookmarkContext";
 import { useColors } from "@/hooks/useColors";
 import { useFontSizes } from "@/hooks/useFontSizes";
 import { procedures } from "@/data/procedures";
+import { safeOpenURL } from "@/utils/safeLink";
 
 function showToast(msg: string) {
   if (Platform.OS === "android") {
@@ -445,7 +446,7 @@ export default function ProcedureDetailScreen() {
             <Text style={[styles.contactTitle, { color: colors.navy }]}>Need Help?</Text>
             {procedure.helpline && (
               <Pressable
-                onPress={() => Linking.openURL(`tel:${procedure.helpline}`)}
+                onPress={() => safeOpenURL(`tel:${procedure.helpline}`, "the dialer")}
                 style={[styles.contactBtn, { backgroundColor: colors.primary }]}
               >
                 <Feather name="phone" size={16} color="#fff" />
@@ -454,7 +455,7 @@ export default function ProcedureDetailScreen() {
             )}
             {procedure.website && (
               <Pressable
-                onPress={() => Linking.openURL(`https://${procedure.website}`)}
+                onPress={() => safeOpenURL(`https://${procedure.website}`, "the website")}
                 style={[styles.contactBtn, { backgroundColor: colors.accent }]}
               >
                 <Feather name="globe" size={16} color={colors.navy} />

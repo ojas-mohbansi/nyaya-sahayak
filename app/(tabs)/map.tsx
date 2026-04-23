@@ -1,5 +1,7 @@
 import { Feather } from "@expo/vector-icons";
 import * as Location from "expo-location";
+import * as Network from "expo-network";
+import { router } from "expo-router";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
@@ -20,7 +22,11 @@ import { useColors } from "@/hooks/useColors";
 import { useFontSizes } from "@/hooks/useFontSizes";
 import { useTranslation } from "@/hooks/useTranslation";
 import { useAppSettings } from "@/context/AppSettingsContext";
-import { officeTypes, type Office } from "@/data/offices";
+import {
+  officeTypes,
+  detectRegionFromCoords,
+  type Office,
+} from "@/data/offices";
 import {
   loadCachedOffices,
   getOfficesForRegion,
@@ -33,6 +39,7 @@ import {
   getCachedTileCount,
   clearTileCache,
   getLastDownloadedAt,
+  getRegionOfflineCoverage,
   estimateDownloadBytes,
   getFreeDiskBytes,
   REGION_BBOX,
@@ -109,6 +116,8 @@ export default function MapScreen() {
   } | null>(null);
   const [isDownloading, setIsDownloading] = useState(false);
   const [lastDownloadedAt, setLastDownloadedAt] = useState<number | null>(null);
+  const [regionCoverage, setRegionCoverage] = useState<number | null>(null);
+  const autoDownloadAttemptedRef = useRef<Set<string>>(new Set());
   const [, setNowTick] = useState(0);
   const [selectedRegions, setSelectedRegions] = useState<string[]>([]);
   const cancelRef = useRef({ cancelled: false });
@@ -119,11 +128,27 @@ export default function MapScreen() {
     );
   }, []);
 
-  const region = settings.region ?? "All";
+  const settingsRegion = settings.region ?? "All";
+
+  // If the user hasn't picked a region (or chose "All") and we know their GPS
+  // location, narrow down to whatever state they're physically in. This makes
+  // sure the map only ever shows pins for one region at a time.
+  const detectedRegion = userLocation
+    ? detectRegionFromCoords(userLocation.latitude, userLocation.longitude)
+    : "All";
+  const region =
+    settingsRegion !== "All"
+      ? settingsRegion
+      : detectedRegion !== "All"
+        ? detectedRegion
+        : "All";
 
   useEffect(() => {
     (async () => {
-      const cached = await loadCachedOffices();
+      // Always re-derive offices from the active region. Even if a stale
+      // cache exists for a different region, we re-filter so pins stay
+      // exclusive to the currently selected/detected state.
+      const cached = await loadCachedOffices(region);
       if (cached && cached.length > 0) {
         setRegionalOffices(cached);
       } else {
@@ -173,9 +198,26 @@ export default function MapScreen() {
     setLastDownloadedAt(ts);
   }, []);
 
+  const refreshRegionCoverage = useCallback(async () => {
+    if (Platform.OS === "web" || region === "All") {
+      setRegionCoverage(null);
+      return;
+    }
+    const cov = await getRegionOfflineCoverage(
+      region,
+      STD_MIN_ZOOM,
+      STD_MAX_ZOOM
+    );
+    setRegionCoverage(cov.ratio);
+  }, [region]);
+
   useEffect(() => {
     refreshCacheStats();
   }, [refreshCacheStats]);
+
+  useEffect(() => {
+    refreshRegionCoverage();
+  }, [refreshRegionCoverage, lastDownloadedAt]);
 
   // Re-render the relative time label every minute so it stays accurate.
   useEffect(() => {
@@ -243,6 +285,37 @@ export default function MapScreen() {
     setDownloadProgress(null);
     setIsDownloading(false);
   }, [isDownloading, region, refreshCacheStats]);
+
+  // First-open auto-download: if the user is on Wi-Fi and we know their region,
+  // quietly fetch its tiles in the background so they're ready offline without
+  // ever having to open the download sheet.
+  useEffect(() => {
+    if (Platform.OS === "web") return;
+    if (region === "All") return;
+    if (regionCoverage === null) return;
+    if (regionCoverage >= 0.95) return;
+    if (isDownloading) return;
+    if (autoDownloadAttemptedRef.current.has(region)) return;
+
+    let cancelled = false;
+    (async () => {
+      try {
+        const net = await Network.getNetworkStateAsync();
+        const onWifi =
+          net.isConnected === true &&
+          net.isInternetReachable !== false &&
+          net.type === Network.NetworkStateType.WIFI;
+        if (!onWifi) return;
+        if (cancelled) return;
+        autoDownloadAttemptedRef.current.add(region);
+        await handleQuickRefresh();
+      } catch {}
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [region, regionCoverage, isDownloading, handleQuickRefresh]);
 
   // Show a one-time prompt if the offline map is older than 30 days.
   useEffect(() => {
@@ -322,8 +395,8 @@ export default function MapScreen() {
   const regionLabel =
     region === "All"
       ? settings.language === "Hindi"
-        ? "सभी क्षेत्र"
-        : "All regions"
+        ? "क्षेत्र चुनें"
+        : "Select region in Settings"
       : region;
 
   const markerColors: Record<string, string> = {
@@ -365,6 +438,51 @@ export default function MapScreen() {
                 {regionLabel}
               </Text>
             </View>
+            {Platform.OS !== "web" && region !== "All" && regionCoverage !== null && (
+              (() => {
+                const ratio = regionCoverage;
+                let bg = "rgba(255,255,255,0.10)";
+                let border = "rgba(255,255,255,0.16)";
+                let dot = "rgba(255,255,255,0.55)";
+                let label = `${region}: not downloaded`;
+                if (ratio >= 0.95) {
+                  bg = "rgba(34,197,94,0.18)";
+                  border = "rgba(34,197,94,0.5)";
+                  dot = "#22c55e";
+                  label = `${region}: offline ready`;
+                } else if (ratio > 0.05) {
+                  bg = "rgba(245,158,11,0.18)";
+                  border = "rgba(245,158,11,0.5)";
+                  dot = "#f59e0b";
+                  label = `${region}: partial offline (${Math.round(ratio * 100)}%)`;
+                }
+                return (
+                  <Pressable
+                    onPress={handleQuickRefresh}
+                    disabled={isDownloading}
+                    hitSlop={6}
+                    style={({ pressed }) => [
+                      styles.updatedBadge,
+                      {
+                        backgroundColor: bg,
+                        borderColor: border,
+                        opacity: pressed || isDownloading ? 0.6 : 1,
+                      },
+                    ]}
+                  >
+                    <View
+                      style={{
+                        width: 6,
+                        height: 6,
+                        borderRadius: 3,
+                        backgroundColor: dot,
+                      }}
+                    />
+                    <Text style={styles.updatedBadgeText}>{label}</Text>
+                  </Pressable>
+                );
+              })()
+            )}
             {Platform.OS !== "web" && lastDownloadedAt && (
               <Pressable
                 onPress={handleQuickRefresh}
@@ -404,6 +522,16 @@ export default function MapScreen() {
             )}
           </View>
           <View style={styles.headerActions}>
+            <Pressable
+              onPress={() => router.push("/settings" as any)}
+              style={[
+                styles.toggleBtn,
+                { backgroundColor: "rgba(255,255,255,0.15)" },
+              ]}
+              accessibilityLabel="Settings"
+            >
+              <Feather name="settings" size={18} color="#fff" />
+            </Pressable>
             {Platform.OS !== "web" && (
               <Pressable
                 onPress={() => setShowDownloadModal(true)}
@@ -694,6 +822,66 @@ export default function MapScreen() {
                   </Text>
                 </Pressable>
               </View>
+            )}
+
+            {/* One-tap: download just the user's active region */}
+            {!isDownloading && region !== "All" && (
+              <>
+                <Text
+                  style={[
+                    styles.sectionLabel,
+                    { color: colors.mutedForeground, fontSize: fs.xs },
+                  ]}
+                >
+                  YOUR REGION
+                </Text>
+                {(() => {
+                  const myCount = estimateTileCount(
+                    STD_MIN_ZOOM,
+                    STD_MAX_ZOOM,
+                    region
+                  );
+                  const myMb = Math.max(
+                    1,
+                    Math.round((myCount * 25) / 1024)
+                  );
+                  return (
+                    <Pressable
+                      onPress={handleQuickRefresh}
+                      style={[
+                        styles.presetBtn,
+                        {
+                          backgroundColor: colors.primary,
+                          borderColor: colors.primary,
+                        },
+                      ]}
+                    >
+                      <View style={{ flex: 1 }}>
+                        <Text
+                          style={[
+                            styles.presetLabel,
+                            { color: "#ffffff", fontSize: fs.sm },
+                          ]}
+                        >
+                          Download {region} for offline use
+                        </Text>
+                        <Text
+                          style={[
+                            styles.presetMeta,
+                            {
+                              color: "rgba(255,255,255,0.85)",
+                              fontSize: fs.xs,
+                            },
+                          ]}
+                        >
+                          ~{myCount.toLocaleString()} tiles · ~{myMb} MB
+                        </Text>
+                      </View>
+                      <Feather name="download" size={18} color="#ffffff" />
+                    </Pressable>
+                  );
+                })()}
+              </>
             )}
 
             {/* Download presets */}

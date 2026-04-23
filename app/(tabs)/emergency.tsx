@@ -1,10 +1,10 @@
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import * as Location from "expo-location";
+import { router } from "expo-router";
 import React, { useState } from "react";
 import {
   Alert,
-  Linking,
   Platform,
   Pressable,
   ScrollView,
@@ -13,6 +13,8 @@ import {
   TextInput,
   View,
 } from "react-native";
+
+import { safeOpenURL } from "@/utils/safeLink";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { EmergencyButton } from "@/components/EmergencyButton";
@@ -56,7 +58,7 @@ export default function EmergencyScreen() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
 
     if (Platform.OS === "web") {
-      Linking.openURL(`tel:${number}`);
+      safeOpenURL(`tel:${number}`, "the dialer");
       return;
     }
 
@@ -71,7 +73,7 @@ export default function EmergencyScreen() {
           onPress: async () => {
             const loc = await getLocation();
             setLocationText(loc);
-            Linking.openURL(`tel:${number}`);
+            safeOpenURL(`tel:${number}`, "the dialer");
           },
         },
       ]
@@ -82,7 +84,7 @@ export default function EmergencyScreen() {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
 
     if (Platform.OS === "web") {
-      Linking.openURL("tel:100");
+      safeOpenURL("tel:100", "the dialer");
       return;
     }
 
@@ -97,7 +99,7 @@ export default function EmergencyScreen() {
           onPress: async () => {
             const loc = await getLocation();
             setLocationText(loc);
-            Linking.openURL("tel:100");
+            safeOpenURL("tel:100", "the dialer");
           },
         },
       ]
@@ -133,8 +135,21 @@ export default function EmergencyScreen() {
           },
         ]}
       >
-        <Feather name="alert-triangle" size={20} color="#fff" />
-        <Text style={styles.headerTitle}>Emergency</Text>
+        <View style={styles.headerRow}>
+          <View style={styles.headerIconWrap}>
+            <Feather name="alert-triangle" size={20} color="#fff" />
+          </View>
+          <Text style={styles.headerTitle}>Emergency</Text>
+          <View style={{ flex: 1 }} />
+          <Pressable
+            onPress={() => router.push("/settings" as any)}
+            style={styles.headerBtn}
+            hitSlop={8}
+            accessibilityLabel="Settings"
+          >
+            <Feather name="settings" size={20} color="#fff" />
+          </Pressable>
+        </View>
         <Text style={styles.headerSub}>One-tap emergency assistance</Text>
       </View>
 
@@ -357,11 +372,28 @@ const styles = StyleSheet.create({
     paddingBottom: 20,
     gap: 4,
   },
+  headerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  headerIconWrap: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: "rgba(255,255,255,0.15)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  headerBtn: {
+    padding: 8,
+    borderRadius: 10,
+    backgroundColor: "rgba(255,255,255,0.15)",
+  },
   headerTitle: {
     fontSize: 24,
     fontFamily: "Inter_700Bold",
     color: "#ffffff",
-    marginTop: 8,
   },
   headerSub: {
     fontSize: 13,

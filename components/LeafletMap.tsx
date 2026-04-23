@@ -1,8 +1,9 @@
-import React, { useCallback, useRef } from "react";
-import { Platform, StyleSheet, View } from "react-native";
+import React, { useCallback, useEffect, useRef, useState } from "react";
+import { Linking, Platform, StyleSheet, View } from "react-native";
 import { WebView, type WebViewMessageEvent } from "react-native-webview";
 
 import type { Office } from "@/data/offices";
+import { ensureLeafletAssets } from "@/utils/leafletAssetCache";
 import { getCachedTileBase64, fetchAndCacheTile } from "@/utils/tileCache";
 
 interface LeafletMapProps {
@@ -11,6 +12,11 @@ interface LeafletMapProps {
   markerColors: Record<string, string>;
   onFallback?: () => void;
   offlineTilesAvailable?: boolean;
+}
+
+interface LeafletInline {
+  js: string | null;
+  css: string | null;
 }
 
 const MARKER_COLORS: Record<string, string> = {
@@ -26,7 +32,8 @@ const getMapHTML = (
   userLocation: { latitude: number; longitude: number } | null,
   markerColors: Record<string, string>,
   isNative: boolean,
-  offlineTilesAvailable: boolean
+  offlineTilesAvailable: boolean,
+  inline: LeafletInline
 ) => {
   const officesJSON = JSON.stringify(
     offices.map((o) => ({
@@ -52,8 +59,16 @@ const getMapHTML = (
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin=""/>
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+${
+  inline.css
+    ? `<style>${inline.css}</style>`
+    : `<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin=""/>`
+}
+${
+  inline.js
+    ? `<script>${inline.js}</script>`
+    : `<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>`
+}
 <style>
 * { margin: 0; padding: 0; box-sizing: border-box; }
 html, body { width: 100%; height: 100%; background: #1b2c3e; overflow: hidden; }
@@ -89,10 +104,21 @@ html, body { width: 100%; height: 100%; background: #1b2c3e; overflow: hidden; }
 }
 .custom-popup .leaflet-popup-tip { background: #fff; }
 .custom-popup .leaflet-popup-content { margin: 0; }
-.popup-content { padding: 14px 16px 12px; min-width: 200px; }
-.popup-name { font-size: 14px; font-weight: 700; color: #1b2c3e; margin-bottom: 4px; }
-.popup-addr { font-size: 12px; color: #666; }
-.popup-phone { font-size: 12px; color: #2d7a4f; margin-top: 3px; }
+.popup-content { padding: 14px 16px 12px; min-width: 240px; max-width: 280px; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+.popup-name { font-size: 15px; font-weight: 700; color: #1b2c3e; margin-bottom: 6px; line-height: 1.25; }
+.popup-row { display: flex; align-items: flex-start; gap: 6px; font-size: 12px; color: #555; margin-top: 4px; line-height: 1.35; }
+.popup-row .ic { flex: 0 0 14px; padding-top: 1px; }
+.popup-actions { display: flex; gap: 8px; margin-top: 12px; }
+.popup-btn {
+  flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px;
+  padding: 9px 10px; border-radius: 8px; font-size: 13px; font-weight: 600;
+  text-decoration: none; cursor: pointer; border: none; -webkit-tap-highlight-color: transparent;
+}
+.popup-btn-call { background: #2d7a4f; color: #fff; }
+.popup-btn-call:hover { background: #246340; }
+.popup-btn-call.disabled { background: #c9d1d8; color: #fff; cursor: not-allowed; }
+.popup-btn-dir { background: #1b2c3e; color: #fff; }
+.popup-btn-dir:hover { background: #0f1c2c; }
 .leaflet-tile { image-rendering: auto; }
 #offline-badge {
   display: none; position: fixed; bottom: 8px; left: 8px; z-index: 1000;
@@ -191,15 +217,60 @@ window.receiveTile = function(key, dataUri) {
   }
 };
 
+function escapeHtml(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+function escapeAttr(s) { return escapeHtml(s); }
+
+window.popupCall = function(phone) {
+  if (!phone) return;
+  if (IS_NATIVE) {
+    notify({ type: 'call', phone: phone });
+  } else {
+    window.location.href = 'tel:' + phone;
+  }
+};
+window.popupDirections = function(lat, lng, name) {
+  if (IS_NATIVE) {
+    notify({ type: 'directions', lat: lat, lng: lng, name: name });
+  } else {
+    var url = 'https://www.google.com/maps/dir/?api=1&destination=' +
+      encodeURIComponent(lat + ',' + lng) +
+      (name ? '&destination_place_id=' : '');
+    window.open(url, '_blank');
+  }
+};
+
+function buildPopupHTML(o) {
+  var name = escapeHtml(o.name);
+  var addr = escapeHtml(o.address);
+  var phone = escapeHtml(o.phone);
+  var phoneAttr = escapeAttr(o.phone || '');
+  var nameAttr = escapeAttr(o.name);
+  var phoneRow = o.phone
+    ? '<div class="popup-row"><span class="ic">📞</span><span>' + phone + '</span></div>'
+    : '';
+  var callBtn = o.phone
+    ? '<button type="button" class="popup-btn popup-btn-call" onclick="popupCall(\\'' + phoneAttr + '\\')" aria-label="Call ' + nameAttr + '">📞 Call</button>'
+    : '<button type="button" class="popup-btn popup-btn-call disabled" disabled aria-label="No phone available">📞 No phone</button>';
+  var dirBtn = '<button type="button" class="popup-btn popup-btn-dir" onclick="popupDirections(' +
+    o.lat + ',' + o.lng + ',\\'' + nameAttr + '\\')" aria-label="Directions to ' + nameAttr + '">🧭 Directions</button>';
+  return '<div class="popup-content">' +
+    '<div class="popup-name">' + name + '</div>' +
+    '<div class="popup-row"><span class="ic">📍</span><span>' + addr + '</span></div>' +
+    phoneRow +
+    '<div class="popup-actions">' + callBtn + dirBtn + '</div>' +
+    '</div>';
+}
+
 function addOffices() {
   OFFICES.forEach(function(o) {
     var color = COLORS[o.type] || '#2d3e50';
     var icon = makeMarkerIcon(color);
-    var phoneHtml = o.phone ? '<div class="popup-phone">📞 ' + o.phone + '</div>' : '';
-    var popup = '<div class="popup-content"><div class="popup-name">' + o.name + '</div>' +
-      '<div class="popup-addr">' + o.address + '</div>' + phoneHtml + '</div>';
     L.marker([o.lat, o.lng], { icon: icon })
-      .bindPopup(popup, { className: 'custom-popup', maxWidth: 280 })
+      .bindPopup(buildPopupHTML(o), { className: 'custom-popup', maxWidth: 300, minWidth: 240 })
       .addTo(map);
   });
   if (USER) {
@@ -306,6 +377,23 @@ export function LeafletMap({
   offlineTilesAvailable = false,
 }: LeafletMapProps) {
   const webviewRef = useRef<WebView>(null);
+  const [inline, setInline] = useState<LeafletInline>({ js: null, css: null });
+
+  // Cache Leaflet's JS/CSS to disk on first online use, then inline them into
+  // the WebView HTML so the map keeps working when the device is offline and
+  // can't reach the unpkg.com CDN.
+  useEffect(() => {
+    if (Platform.OS === "web") return;
+    let cancelled = false;
+    (async () => {
+      const assets = await ensureLeafletAssets();
+      if (cancelled) return;
+      if (assets.js && assets.css) setInline(assets);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const handleMessage = useCallback(async (event: WebViewMessageEvent) => {
     try {
@@ -325,6 +413,24 @@ export function LeafletMap({
             `window.receiveTile(${JSON.stringify(key)}, ${JSON.stringify(dataUri)}); void 0;`
           );
         }
+      } else if (data.type === "call" && data.phone) {
+        const num = String(data.phone).replace(/[^+\d]/g, "");
+        if (num) Linking.openURL(`tel:${num}`).catch(() => {});
+      } else if (data.type === "directions") {
+        const lat = Number(data.lat);
+        const lng = Number(data.lng);
+        if (Number.isFinite(lat) && Number.isFinite(lng)) {
+          const label = encodeURIComponent(String(data.name ?? "Destination"));
+          const url =
+            Platform.OS === "ios"
+              ? `maps:0,0?q=${label}@${lat},${lng}`
+              : `geo:${lat},${lng}?q=${lat},${lng}(${label})`;
+          Linking.openURL(url).catch(() => {
+            Linking.openURL(
+              `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`
+            ).catch(() => {});
+          });
+        }
       } else if (data.type === "mapError") {
         onFallback?.();
       }
@@ -336,7 +442,8 @@ export function LeafletMap({
     userLocation ?? null,
     markerColors,
     Platform.OS !== "web",
-    offlineTilesAvailable
+    offlineTilesAvailable,
+    inline
   );
 
   if (Platform.OS === "web") {
@@ -354,6 +461,7 @@ export function LeafletMap({
   return (
     <View style={styles.container}>
       <WebView
+        key={inline.js && inline.css ? "leaflet-inline" : "leaflet-cdn"}
         ref={webviewRef}
         source={{ html }}
         style={styles.webview}

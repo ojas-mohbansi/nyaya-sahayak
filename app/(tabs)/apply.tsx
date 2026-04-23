@@ -54,8 +54,20 @@ export default function ApplyScreen() {
           },
         ]}
       >
-        <Text style={[styles.headerTitle, { fontSize: fs.xl }]}>{t.applyFor}</Text>
-        <Text style={[styles.headerSub, { fontSize: fs.sm }]}>{t.applyForSub}</Text>
+        <View style={styles.headerRow}>
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.headerTitle, { fontSize: fs.xl }]}>{t.applyFor}</Text>
+            <Text style={[styles.headerSub, { fontSize: fs.sm }]}>{t.applyForSub}</Text>
+          </View>
+          <Pressable
+            onPress={() => router.push("/settings" as any)}
+            style={styles.headerBtn}
+            hitSlop={8}
+            accessibilityLabel="Settings"
+          >
+            <Feather name="settings" size={20} color="rgba(255,255,255,0.85)" />
+          </Pressable>
+        </View>
       </View>
 
       <View style={styles.searchWrap}>
@@ -141,6 +153,16 @@ const styles = StyleSheet.create({
   header: {
     paddingHorizontal: 20,
     paddingBottom: 20,
+  },
+  headerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  headerBtn: {
+    padding: 10,
+    borderRadius: 10,
+    backgroundColor: "rgba(255,255,255,0.08)",
   },
   headerTitle: {
     fontFamily: "Inter_700Bold",

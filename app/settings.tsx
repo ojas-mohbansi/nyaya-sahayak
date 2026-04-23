@@ -25,6 +25,7 @@ import { useAppSettings } from "@/context/AppSettingsContext";
 import { rightsCategories } from "@/data/rights";
 import { SUPPORTED_LANGUAGES, UPCOMING_LANGUAGES } from "@/data/translations";
 import { saveRegionalOffices } from "@/utils/regionalOfficesCache";
+import { safeOpenURL } from "@/utils/safeLink";
 
 const DAILY_TIP_ID = "nyaya-daily-tip";
 
@@ -461,7 +462,7 @@ export default function SettingsScreen() {
           <View style={[styles.divider, { backgroundColor: colors.border }]} />
 
           <Pressable
-            onPress={() => Linking.openURL("https://nalsa.gov.in")}
+            onPress={() => safeOpenURL("https://nalsa.gov.in", "the NALSA website")}
             style={({ pressed }) => [styles.row, { opacity: pressed ? 0.7 : 1 }]}
           >
             <View style={styles.rowLeft}>
@@ -476,7 +477,7 @@ export default function SettingsScreen() {
           <View style={[styles.divider, { backgroundColor: colors.border }]} />
 
           <Pressable
-            onPress={() => Linking.openURL("https://ojas-mohbansi.github.io/nsw/")}
+            onPress={() => safeOpenURL("https://ojas-mohbansi.github.io/nsw/", "the website")}
             style={({ pressed }) => [styles.row, { opacity: pressed ? 0.7 : 1 }]}
           >
             <View style={styles.rowLeft}>
