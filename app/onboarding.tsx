@@ -20,6 +20,10 @@ import { useAppSettings } from "@/context/AppSettingsContext";
 import { SUPPORTED_LANGUAGES, UPCOMING_LANGUAGES, type Language } from "@/data/translations";
 import { detectRegionFromCoords } from "@/data/offices";
 import { saveRegionalOffices } from "@/utils/regionalOfficesCache";
+import {
+  downloadOfflineTiles,
+  estimateTileCount,
+} from "@/utils/tileCache";
 
 /* ── Onboarding string translations for all 15 languages ──── */
 const OB: Record<Language, {
@@ -39,6 +43,10 @@ const OB: Record<Language, {
   slide2Desc: string;
   slide3Title: string;
   slide3Desc: string;
+  downloadMapTitle: string;
+  downloadMapSub: string;
+  downloadNow: string;
+  notNow: string;
 }> = {
   English: {
     selectLanguage: "Select Language",
@@ -57,6 +65,10 @@ const OB: Record<Language, {
     slide2Desc: "Legal Aid centres, courts and police stations — one tap away.",
     slide3Title: "Always Offline",
     slide3Desc: "Everything works without internet. Your rights, your procedures, your emergency contacts.",
+    downloadMapTitle: "Download Offline Map",
+    downloadMapSub: "Navigate without internet. Works in remote villages too.",
+    downloadNow: "Download",
+    notNow: "Not Now",
   },
   Hindi: {
     selectLanguage: "भाषा चुनें",
@@ -75,6 +87,10 @@ const OB: Record<Language, {
     slide2Desc: "कानूनी सहायता केंद्र, न्यायालय और पुलिस — एक टैप में।",
     slide3Title: "हमेशा ऑफलाइन",
     slide3Desc: "सब कुछ बिना इंटरनेट के। आपके अधिकार, प्रक्रियाएं, आपातकालीन संपर्क।",
+    downloadMapTitle: "ऑफलाइन मैप डाउनलोड करें",
+    downloadMapSub: "बिना इंटरनेट नेविगेट करें। दूरदराज गांवों में भी काम करता है।",
+    downloadNow: "डाउनलोड करें",
+    notNow: "अभी नहीं",
   },
   Marathi: {
     selectLanguage: "भाषा निवडा",
@@ -93,6 +109,10 @@ const OB: Record<Language, {
     slide2Desc: "कायदेशीर सहाय्य केंद्रे, न्यायालये आणि पोलीस — एका टॅपमध्ये.",
     slide3Title: "नेहमी ऑफलाइन",
     slide3Desc: "सर्व काही इंटरनेटशिवाय. आपले अधिकार, प्रक्रिया, आपत्कालीन संपर्क.",
+    downloadMapTitle: "ऑफलाइन मॅप डाउनलोड करा",
+    downloadMapSub: "इंटरनेटशिवाय नेव्हिगेट करा. दूरच्या गावांमध्येही काम करते.",
+    downloadNow: "डाउनलोड करा",
+    notNow: "आत्ता नाही",
   },
   Tamil: {
     selectLanguage: "மொழியை தேர்ந்தெடுக்கவும்",
@@ -111,6 +131,10 @@ const OB: Record<Language, {
     slide2Desc: "சட்ட உதவி மையங்கள், நீதிமன்றங்கள் மற்றும் காவல் நிலையங்கள் — ஒரே தட்டில்.",
     slide3Title: "எப்போதும் ஆஃப்லைன்",
     slide3Desc: "இணையம் இல்லாமலும் அனைத்தும் செயல்படும். உங்கள் உரிமைகள், நடைமுறைகள், அவசர தொடர்புகள்.",
+    downloadMapTitle: "ஆஃப்லைன் வரைபடம் பதிவிறக்கவும்",
+    downloadMapSub: "இணையம் இல்லாமல் வழிசெல்லுங்கள். தொலை கிராமங்களிலும் செயல்படும்.",
+    downloadNow: "பதிவிறக்கு",
+    notNow: "இப்போது வேண்டாம்",
   },
   Telugu: {
     selectLanguage: "భాషను ఎంచుకోండి",
@@ -129,6 +153,10 @@ const OB: Record<Language, {
     slide2Desc: "న్యాయ సహాయ కేంద్రాలు, న్యాయస్థానాలు మరియు పోలీస్ స్టేషన్లు — ఒక్క నొక్కుతో.",
     slide3Title: "ఎల్లప్పుడూ ఆఫ్‌లైన్",
     slide3Desc: "ఇంటర్నెట్ లేకుండా అన్నీ పని చేస్తాయి. మీ హక్కులు, విధానాలు, అత్యవసర పరిచయాలు.",
+    downloadMapTitle: "ఆఫ్‌లైన్ మ్యాప్ డౌన్‌లోడ్ చేయండి",
+    downloadMapSub: "ఇంటర్నెట్ లేకుండా నావిగేట్ చేయండి. మారుమూల గ్రామాల్లోనూ పనిచేస్తుంది.",
+    downloadNow: "డౌన్‌లోడ్",
+    notNow: "ఇప్పుడు వద్దు",
   },
   Bengali: {
     selectLanguage: "ভাষা বেছে নিন",
@@ -147,6 +175,10 @@ const OB: Record<Language, {
     slide2Desc: "আইনি সহায়তা কেন্দ্র, আদালত ও থানা — একটি ট্যাপেই।",
     slide3Title: "সবসময় অফলাইন",
     slide3Desc: "ইন্টারনেট ছাড়াই সব কাজ করে। আপনার অধিকার, পদ্ধতি, জরুরি যোগাযোগ।",
+    downloadMapTitle: "অফলাইন ম্যাপ ডাউনলোড করুন",
+    downloadMapSub: "ইন্টারনেট ছাড়াই নেভিগেট করুন। প্রত্যন্ত গ্রামেও কাজ করে।",
+    downloadNow: "ডাউনলোড করুন",
+    notNow: "এখন নয়",
   },
   Gujarati: {
     selectLanguage: "ભાષા પસંદ કરો",
@@ -165,6 +197,10 @@ const OB: Record<Language, {
     slide2Desc: "કાનૂની સહાય કેન્દ્રો, અદાલતો અને પોલીસ સ્ટેશન — એક ટેપ પર.",
     slide3Title: "હંમેશા ઑફ્લાઇન",
     slide3Desc: "ઇન્ટરનેટ વિના બધું કાર્ય કરે છે. તમારા અધિકારો, પ્રક્રિયાઓ, કટોકટી સંપર્કો.",
+    downloadMapTitle: "ઑફ્લાઇન મૅપ ડાઉનલોડ કરો",
+    downloadMapSub: "ઇન્ટરનેટ વિના નેવિગેટ કરો. દૂરના ગામોમાં પણ કામ કરે છે.",
+    downloadNow: "ડાઉનલોડ",
+    notNow: "હમણાં નહીં",
   },
   Kannada: {
     selectLanguage: "ಭಾಷೆ ಆಯ್ಕೆ ಮಾಡಿ",
@@ -183,6 +219,10 @@ const OB: Record<Language, {
     slide2Desc: "ಕಾನೂನು ನೆರವು ಕೇಂದ್ರಗಳು, ನ್ಯಾಯಾಲಯಗಳು ಮತ್ತು ಪೊಲೀಸ್ ಠಾಣೆಗಳು — ಒಂದು ಟ್ಯಾಪ್‌ನಲ್ಲಿ.",
     slide3Title: "ಯಾವಾಗಲೂ ಆಫ್‌ಲೈನ್",
     slide3Desc: "ಇಂಟರ್ನೆಟ್ ಇಲ್ಲದೆ ಎಲ್ಲವೂ ಕಾರ್ಯ ನಿರ್ವಹಿಸುತ್ತದೆ. ನಿಮ್ಮ ಹಕ್ಕುಗಳು, ಕಾರ್ಯವಿಧಾನಗಳು, ತುರ್ತು ಸಂಪರ್ಕಗಳು.",
+    downloadMapTitle: "ಆಫ್‌ಲೈನ್ ನಕ್ಷೆ ಡೌನ್‌ಲೋಡ್ ಮಾಡಿ",
+    downloadMapSub: "ಇಂಟರ್ನೆಟ್ ಇಲ್ಲದೆ ನ್ಯಾವಿಗೇಟ್ ಮಾಡಿ. ದೂರದ ಹಳ್ಳಿಗಳಲ್ಲೂ ಕಾರ್ಯ ನಿರ್ವಹಿಸುತ್ತದೆ.",
+    downloadNow: "ಡೌನ್‌ಲೋಡ್",
+    notNow: "ಈಗ ಬೇಡ",
   },
   Malayalam: {
     selectLanguage: "ഭാഷ തിരഞ്ഞെടുക്കുക",
@@ -201,6 +241,10 @@ const OB: Record<Language, {
     slide2Desc: "നിയമ സഹായ കേന്ദ്രങ്ങൾ, കോടതികൾ, പോലീസ് സ്റ്റേഷനുകൾ — ഒറ്റ ടാപ്പിൽ.",
     slide3Title: "എപ്പോഴും ഓഫ്‌ലൈൻ",
     slide3Desc: "ഇന്റർനെറ്റ് ഇല്ലാതെ എല്ലാം പ്രവർത്തിക്കും. നിങ്ങളുടെ അവകാശങ്ങൾ, നടപടിക്രമങ്ങൾ, അടിയന്തര ബന്ധങ്ങൾ.",
+    downloadMapTitle: "ഓഫ്‌ലൈൻ മാപ്പ് ഡൗൺലോഡ് ചെയ്യുക",
+    downloadMapSub: "ഇന്റർനെറ്റ് ഇല്ലാതെ നാവിഗേറ്റ് ചെയ്യുക. വിദൂര ഗ്രാമങ്ങളിലും പ്രവർത്തിക്കും.",
+    downloadNow: "ഡൗൺലോഡ്",
+    notNow: "ഇപ്പോൾ വേണ്ട",
   },
   Assamese: {
     selectLanguage: "ভাষা বাছনি কৰক",
@@ -219,6 +263,10 @@ const OB: Record<Language, {
     slide2Desc: "আইনী সহায় কেন্দ্ৰ, ন্যায়ালয় আৰু আৰক্ষী থানা — এটা টেপতে।",
     slide3Title: "সদায় অফলাইন",
     slide3Desc: "ইন্টাৰনেট অবিহনে সকলো কাম কৰে। আপোনাৰ অধিকাৰ, পদ্ধতি, জৰুৰীকালীন যোগাযোগ।",
+    downloadMapTitle: "অফলাইন মেপ ডাউনলোড কৰক",
+    downloadMapSub: "ইন্টাৰনেট অবিহনে নেভিগেট কৰক। দূৰৱৰ্তী গাঁৱতো কাম কৰে।",
+    downloadNow: "ডাউনলোড কৰক",
+    notNow: "এতিয়া নহয়",
   },
   Odia: {
     selectLanguage: "ଭାଷା ବାଛନ୍ତୁ",
@@ -237,6 +285,10 @@ const OB: Record<Language, {
     slide2Desc: "ଆଇନ ସହାୟତା କେନ୍ଦ୍ର, ନ୍ୟାୟାଳୟ ଓ ଥାନା — ଏକ ଟ୍ୟାପ୍‌ରେ।",
     slide3Title: "ସବୁବେଳେ ଅଫ୍‌ଲାଇନ୍",
     slide3Desc: "ଇଣ୍ଟରନେଟ୍ ବିନା ସବୁ କିଛି ଚାଲୁ ଅଛି। ଆପଣଙ୍କ ଅଧିକାର, ପ୍ରକ୍ରିୟା, ଜରୁରୀ ଯୋଗାଯୋଗ।",
+    downloadMapTitle: "ଅଫ୍‌ଲାଇନ୍ ମ୍ୟାପ ଡାଉନଲୋଡ କରନ୍ତୁ",
+    downloadMapSub: "ଇଣ୍ଟରନେଟ୍ ବିନା ନ୍ୟାଭିଗେଟ୍ କରନ୍ତୁ। ଦୂରବର୍ତ୍ତୀ ଗ୍ରାମରେ ମଧ୍ୟ କାର୍ଯ୍ୟ କରେ।",
+    downloadNow: "ଡାଉନଲୋଡ",
+    notNow: "ଏବେ ନୁହେଁ",
   },
   Punjabi: {
     selectLanguage: "ਭਾਸ਼ਾ ਚੁਣੋ",
@@ -255,6 +307,10 @@ const OB: Record<Language, {
     slide2Desc: "ਕਾਨੂੰਨੀ ਸਹਾਇਤਾ ਕੇਂਦਰ, ਅਦਾਲਤਾਂ ਅਤੇ ਪੁਲਿਸ ਸਟੇਸ਼ਨ — ਇੱਕ ਟੈਪ ਵਿੱਚ।",
     slide3Title: "ਹਮੇਸ਼ਾ ਔਫਲਾਈਨ",
     slide3Desc: "ਇੰਟਰਨੈੱਟ ਤੋਂ ਬਿਨਾਂ ਸਭ ਕੁਝ ਕੰਮ ਕਰਦਾ ਹੈ। ਤੁਹਾਡੇ ਅਧਿਕਾਰ, ਪ੍ਰਕਿਰਿਆਵਾਂ, ਐਮਰਜੈਂਸੀ ਸੰਪਰਕ।",
+    downloadMapTitle: "ਔਫਲਾਈਨ ਮੈਪ ਡਾਊਨਲੋਡ ਕਰੋ",
+    downloadMapSub: "ਇੰਟਰਨੈੱਟ ਤੋਂ ਬਿਨਾਂ ਨੈਵੀਗੇਟ ਕਰੋ। ਦੂਰ-ਦੁਰਾਡੇ ਪਿੰਡਾਂ ਵਿੱਚ ਵੀ ਕੰਮ ਕਰਦਾ ਹੈ।",
+    downloadNow: "ਡਾਊਨਲੋਡ",
+    notNow: "ਹੁਣ ਨਹੀਂ",
   },
   Urdu: {
     selectLanguage: "زبان منتخب کریں",
@@ -273,6 +329,10 @@ const OB: Record<Language, {
     slide2Desc: "قانونی امداد مراکز، عدالتیں اور تھانے — ایک ٹیپ پر۔",
     slide3Title: "ہمیشہ آف لائن",
     slide3Desc: "انٹرنیٹ کے بغیر سب کچھ کام کرتا ہے۔ آپ کے حقوق، طریقہ کار، ہنگامی رابطے۔",
+    downloadMapTitle: "آف لائن نقشہ ڈاؤن لوڈ کریں",
+    downloadMapSub: "انٹرنیٹ کے بغیر نیویگیٹ کریں۔ دور دراز دیہاتوں میں بھی کام کرتا ہے۔",
+    downloadNow: "ڈاؤن لوڈ",
+    notNow: "ابھی نہیں",
   },
   Nepali: {
     selectLanguage: "भाषा छान्नुहोस्",
@@ -291,6 +351,10 @@ const OB: Record<Language, {
     slide2Desc: "कानुनी सहायता केन्द्र, अदालत र प्रहरी चौकी — एक ट्यापमा।",
     slide3Title: "सधैं अफलाइन",
     slide3Desc: "इन्टरनेट बिना सबै काम गर्छ। तपाईंका अधिकार, प्रक्रिया, आपत्कालीन सम्पर्क।",
+    downloadMapTitle: "अफलाइन म्याप डाउनलोड गर्नुहोस्",
+    downloadMapSub: "इन्टरनेट बिना नेभिगेट गर्नुहोस्। टाढाका गाउँमा पनि काम गर्छ।",
+    downloadNow: "डाउनलोड",
+    notNow: "अहिले होइन",
   },
   Kashmiri: {
     selectLanguage: "زبان چُنو",
@@ -309,6 +373,10 @@ const OB: Record<Language, {
     slide2Desc: "قانونی مدد مرکز، عدالت تہ تھانہٕ — اکھ ٹیپس مہٕنز۔",
     slide3Title: "ہمیشہٕ آف لائن",
     slide3Desc: "انٹرنیٹ بغیر سب کیاہ کام کرتھ چھُہ۔ تہٕند حق، طریقہٕ کار، ہنگامی رابطہٕ۔",
+    downloadMapTitle: "آف لائن نقشہٕ ڈاؤن لوڈ کرو",
+    downloadMapSub: "انٹرنیٹ بغیر نیویگیٹ کرو۔ دُوہ دُور گاؤں مَنز بہٕ کام کرتھ چھُہ۔",
+    downloadNow: "ڈاؤن لوڈ",
+    notNow: "ابھی نہ",
   },
 };
 
@@ -323,8 +391,13 @@ export async function hasOnboarded(): Promise<boolean> {
   return val === "1";
 }
 
-type Step = "language" | "slides" | "location";
+type Step = "language" | "slides" | "location" | "mapDownload";
 type SlideIndex = 0 | 1 | 2;
+
+const STD_MIN_ZOOM = 5;
+const STD_MAX_ZOOM = 8;
+const STD_TILE_COUNT = estimateTileCount(STD_MIN_ZOOM, STD_MAX_ZOOM);
+const STD_SIZE_MB = Math.round((STD_TILE_COUNT * 25) / 1024);
 
 export default function OnboardingScreen() {
   const colors = useColors();
@@ -335,6 +408,13 @@ export default function OnboardingScreen() {
   const [slide, setSlide] = useState<SlideIndex>(0);
   const [selectedLang, setSelectedLang] = useState<Language>("English");
   const [locLoading, setLocLoading] = useState(false);
+  const [detectedRegion, setDetectedRegion] = useState("India");
+  const [isDownloading, setIsDownloading] = useState(false);
+  const [downloadDone, setDownloadDone] = useState(false);
+  const [downloadProgress, setDownloadProgress] = useState<{
+    downloaded: number; total: number; failed: number;
+  } | null>(null);
+  const cancelRef = useRef({ cancelled: false });
 
   const fadeAnim = useRef(new Animated.Value(1)).current;
 
@@ -361,9 +441,30 @@ export default function OnboardingScreen() {
     }
   };
 
+  const goToMapDownload = async (
+    regionName: string,
+    coords?: { latitude: number; longitude: number }
+  ) => {
+    let displayName = regionName !== "All" ? regionName : "India";
+    if (coords) {
+      try {
+        const results = await Location.reverseGeocodeAsync(coords);
+        if (results.length > 0) {
+          const r = results[0];
+          const state = r.region ?? r.subregion ?? r.city;
+          if (state) displayName = state;
+        }
+      } catch {}
+    }
+    setDetectedRegion(displayName);
+    setLocLoading(false);
+    fade(() => setStep("mapDownload"));
+  };
+
   const handleLocation = async () => {
     setLocLoading(true);
     let region = "All";
+    let coords: { latitude: number; longitude: number } | undefined;
     try {
       if (Platform.OS === "web") {
         if (navigator.geolocation) {
@@ -382,18 +483,49 @@ export default function OnboardingScreen() {
         const { status } = await Location.requestForegroundPermissionsAsync();
         if (status === "granted") {
           const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Low });
+          coords = { latitude: loc.coords.latitude, longitude: loc.coords.longitude };
           region = detectRegionFromCoords(loc.coords.latitude, loc.coords.longitude);
         }
       }
     } catch {}
     setSettings({ region });
     await saveRegionalOffices(region);
-    await finish();
+    if (Platform.OS !== "web") {
+      await goToMapDownload(region, coords);
+    } else {
+      await finish();
+    }
   };
 
   const skipLocation = async () => {
     setSettings({ region: "All" });
     await saveRegionalOffices("All");
+    if (Platform.OS !== "web") {
+      await goToMapDownload("All");
+    } else {
+      await finish();
+    }
+  };
+
+  const handleMapDownload = async () => {
+    if (isDownloading) return;
+    cancelRef.current = { cancelled: false };
+    setIsDownloading(true);
+    setDownloadProgress({ downloaded: 0, total: STD_TILE_COUNT, failed: 0 });
+    try {
+      await downloadOfflineTiles(
+        STD_MIN_ZOOM,
+        STD_MAX_ZOOM,
+        (downloaded, total, failed) => {
+          setDownloadProgress({ downloaded, total, failed });
+        },
+        cancelRef.current
+      );
+      if (!cancelRef.current.cancelled) {
+        setDownloadDone(true);
+      }
+    } catch {}
+    setIsDownloading(false);
     await finish();
   };
 
@@ -426,6 +558,16 @@ export default function OnboardingScreen() {
         {step === "location" && (
           <LocStep s={s} loading={locLoading} />
         )}
+        {step === "mapDownload" && (
+          <MapDownloadStep
+            s={s}
+            regionName={detectedRegion}
+            sizeMb={STD_SIZE_MB}
+            isDownloading={isDownloading}
+            downloadDone={downloadDone}
+            downloadProgress={downloadProgress}
+          />
+        )}
       </Animated.View>
 
       <View style={styles.footer}>
@@ -433,7 +575,9 @@ export default function OnboardingScreen() {
         <View style={styles.dots}>
           {[0, 1, 2, 3, 4].map((i) => {
             const cur =
-              step === "language" ? 0 : step === "slides" ? slide + 1 : 4;
+              step === "language" ? 0
+              : step === "slides" ? slide + 1
+              : 4;
             return (
               <View
                 key={i}
@@ -492,6 +636,35 @@ export default function OnboardingScreen() {
           <View style={styles.loadingRow}>
             <ActivityIndicator color="#d4af37" size="small" />
             <Text style={styles.loadingText}>{s.detectingRegion}</Text>
+          </View>
+        )}
+
+        {step === "mapDownload" && !isDownloading && !downloadDone && (
+          <View style={styles.locFooter}>
+            <Pressable
+              onPress={handleMapDownload}
+              style={({ pressed }) => [styles.btn, { opacity: pressed ? 0.82 : 1 }]}
+            >
+              <Text style={styles.btnText}>{s.downloadNow}</Text>
+            </Pressable>
+            <Pressable onPress={finish} style={styles.ghostBtn}>
+              <Text style={styles.ghostBtnText}>{s.notNow}</Text>
+            </Pressable>
+          </View>
+        )}
+
+        {step === "mapDownload" && isDownloading && downloadProgress && (
+          <View style={styles.downloadingRow}>
+            <ActivityIndicator color="#d4af37" size="small" />
+            <Text style={styles.loadingText}>
+              {downloadProgress.downloaded}/{downloadProgress.total} tiles
+            </Text>
+            <Pressable
+              onPress={() => { cancelRef.current.cancelled = true; }}
+              hitSlop={10}
+            >
+              <Text style={styles.cancelText}>✕</Text>
+            </Pressable>
           </View>
         )}
       </View>
@@ -585,6 +758,54 @@ function LocStep({ s, loading }: { s: typeof OB[Language]; loading: boolean }) {
   );
 }
 
+function MapDownloadStep({
+  s,
+  regionName,
+  sizeMb,
+  isDownloading,
+  downloadDone,
+  downloadProgress,
+}: {
+  s: typeof OB[Language];
+  regionName: string;
+  sizeMb: number;
+  isDownloading: boolean;
+  downloadDone: boolean;
+  downloadProgress: { downloaded: number; total: number; failed: number } | null;
+}) {
+  const progressPct =
+    downloadProgress && downloadProgress.total > 0
+      ? Math.round((downloadProgress.downloaded / downloadProgress.total) * 100)
+      : 0;
+
+  return (
+    <View style={mds.wrap}>
+      <Text style={mds.icon}>🗺️</Text>
+      <Text style={mds.title}>{s.downloadMapTitle}</Text>
+      <Text style={mds.desc}>{s.downloadMapSub}</Text>
+
+      <View style={mds.pill}>
+        <Text style={mds.pillText}>
+          {regionName} • ~{sizeMb} MB
+        </Text>
+      </View>
+
+      {isDownloading && downloadProgress ? (
+        <View style={mds.progressWrap}>
+          <View style={mds.progressBar}>
+            <View style={[mds.progressFill, { width: `${progressPct}%` as any }]} />
+          </View>
+          <Text style={mds.progressLabel}>{progressPct}%</Text>
+        </View>
+      ) : null}
+
+      {downloadDone ? (
+        <Text style={mds.doneText}>✓ Map saved to device</Text>
+      ) : null}
+    </View>
+  );
+}
+
 /* ── Shared styles ─────────────────────────────── */
 const styles = StyleSheet.create({
   root: {
@@ -655,6 +876,19 @@ const styles = StyleSheet.create({
     color: "rgba(255,255,255,0.6)",
     fontSize: 14,
     fontFamily: "Inter_400Regular",
+  },
+  downloadingRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 10,
+    paddingVertical: 14,
+  },
+  cancelText: {
+    color: "rgba(255,255,255,0.4)",
+    fontSize: 16,
+    fontFamily: "Inter_500Medium",
+    paddingHorizontal: 6,
   },
 });
 
@@ -806,5 +1040,69 @@ const ls2 = StyleSheet.create({
     fontFamily: "Inter_400Regular",
     color: "rgba(255,255,255,0.55)",
     lineHeight: 23,
+  },
+});
+
+/* ── Map download step ───────────────────────────── */
+const mds = StyleSheet.create({
+  wrap: {
+    gap: 16,
+    paddingVertical: 8,
+  },
+  icon: {
+    fontSize: 52,
+    marginBottom: 4,
+  },
+  title: {
+    fontSize: 26,
+    fontFamily: "Inter_700Bold",
+    color: "#fff",
+    letterSpacing: -0.5,
+    lineHeight: 32,
+  },
+  desc: {
+    fontSize: 15,
+    fontFamily: "Inter_400Regular",
+    color: "rgba(255,255,255,0.55)",
+    lineHeight: 23,
+  },
+  pill: {
+    alignSelf: "flex-start",
+    backgroundColor: "rgba(212,175,55,0.16)",
+    borderRadius: 100,
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    borderWidth: 1,
+    borderColor: "rgba(212,175,55,0.35)",
+  },
+  pillText: {
+    fontSize: 13,
+    fontFamily: "Inter_600SemiBold",
+    color: "#d4af37",
+  },
+  progressWrap: {
+    gap: 6,
+  },
+  progressBar: {
+    height: 6,
+    backgroundColor: "rgba(255,255,255,0.12)",
+    borderRadius: 3,
+    overflow: "hidden",
+  },
+  progressFill: {
+    height: 6,
+    backgroundColor: "#d4af37",
+    borderRadius: 3,
+  },
+  progressLabel: {
+    fontSize: 12,
+    fontFamily: "Inter_500Medium",
+    color: "rgba(255,255,255,0.5)",
+    textAlign: "right",
+  },
+  doneText: {
+    fontSize: 14,
+    fontFamily: "Inter_600SemiBold",
+    color: "#4ade80",
   },
 });

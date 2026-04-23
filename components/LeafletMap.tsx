@@ -1,14 +1,16 @@
-import React from "react";
+import React, { useCallback, useRef } from "react";
 import { Platform, StyleSheet, View } from "react-native";
-import { WebView } from "react-native-webview";
+import { WebView, type WebViewMessageEvent } from "react-native-webview";
 
 import type { Office } from "@/data/offices";
+import { getCachedTileBase64, fetchAndCacheTile } from "@/utils/tileCache";
 
 interface LeafletMapProps {
   offices: Office[];
   userLocation?: { latitude: number; longitude: number } | null;
   markerColors: Record<string, string>;
   onFallback?: () => void;
+  offlineTilesAvailable?: boolean;
 }
 
 const MARKER_COLORS: Record<string, string> = {
@@ -22,7 +24,9 @@ const MARKER_COLORS: Record<string, string> = {
 const getMapHTML = (
   offices: Office[],
   userLocation: { latitude: number; longitude: number } | null,
-  markerColors: Record<string, string>
+  markerColors: Record<string, string>,
+  isNative: boolean,
+  offlineTilesAvailable: boolean
 ) => {
   const officesJSON = JSON.stringify(
     offices.map((o) => ({
@@ -39,402 +43,309 @@ const getMapHTML = (
     ? JSON.stringify({ lat: userLocation.latitude, lng: userLocation.longitude })
     : "null";
   const colorsJSON = JSON.stringify({ ...MARKER_COLORS, ...markerColors });
+  const centerLat = userLocation?.latitude ?? 22.5;
+  const centerLng = userLocation?.longitude ?? 82.5;
+  const zoom = userLocation ? 9 : 5;
 
   return `<!DOCTYPE html>
 <html>
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin=""/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
 <style>
-*{margin:0;padding:0;box-sizing:border-box;}
-body{background:#1b2c3e;font-family:sans-serif;height:100vh;overflow:hidden;touch-action:none;}
-canvas{display:block;cursor:pointer;}
-#popup{display:none;position:fixed;bottom:72px;left:12px;right:12px;background:#fff;border-radius:14px;padding:14px 16px 12px;z-index:100;box-shadow:0 8px 32px rgba(0,0,0,0.35);}
-#popup-close{position:absolute;top:10px;right:13px;font-size:20px;cursor:pointer;color:#aaa;line-height:1;}
-#popup-name{font-size:14px;font-weight:700;color:#1b2c3e;margin-right:24px;margin-bottom:4px;}
-#popup-addr{font-size:12px;color:#666;}
-#popup-phone{font-size:12px;color:#2d7a4f;margin-top:3px;}
-#legend{position:fixed;top:10px;right:10px;background:rgba(15,29,43,0.92);border:1px solid rgba(255,255,255,0.1);border-radius:10px;padding:9px 11px;}
-.li{display:flex;align-items:center;gap:7px;margin:3px 0;color:rgba(255,255,255,0.75);font-size:11px;}
-.ld{width:10px;height:10px;border-radius:50%;border:1.5px solid rgba(255,255,255,0.4);}
-#count{position:fixed;bottom:16px;left:50%;transform:translateX(-50%);background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.18);border-radius:20px;padding:6px 14px;font-size:12px;font-weight:600;color:#fff;white-space:nowrap;}
-#zoom-btns{position:fixed;bottom:52px;right:10px;display:flex;flex-direction:column;gap:4px;}
-.zbtn{width:34px;height:34px;background:rgba(15,29,43,0.92);border:1px solid rgba(255,255,255,0.15);border-radius:8px;color:#fff;font-size:18px;display:flex;align-items:center;justify-content:center;cursor:pointer;user-select:none;line-height:1;}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html, body { width: 100%; height: 100%; background: #1b2c3e; overflow: hidden; }
+#map { width: 100%; height: 100%; }
+#loading {
+  position: fixed; inset: 0; background: #1b2c3e;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  z-index: 9999; color: #fff; gap: 12px;
+}
+#loading-text { font-family: sans-serif; font-size: 14px; color: rgba(255,255,255,0.7); }
+#loading-spinner {
+  width: 36px; height: 36px;
+  border: 3px solid rgba(255,255,255,0.2);
+  border-top-color: #d4af37;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+#error-msg {
+  display: none; position: fixed; inset: 0; background: #1b2c3e;
+  align-items: center; justify-content: center; flex-direction: column;
+  z-index: 9999; color: #fff; gap: 12px; font-family: sans-serif;
+  text-align: center; padding: 24px;
+}
+#error-msg p { color: rgba(255,255,255,0.6); font-size: 13px; }
+#retry-btn {
+  margin-top: 8px; padding: 10px 24px; background: #d4af37; color: #1b2c3e;
+  border: none; border-radius: 8px; font-size: 13px; font-weight: 700; cursor: pointer;
+}
+.custom-popup .leaflet-popup-content-wrapper {
+  background: #fff; border-radius: 14px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.35); border: none;
+}
+.custom-popup .leaflet-popup-tip { background: #fff; }
+.custom-popup .leaflet-popup-content { margin: 0; }
+.popup-content { padding: 14px 16px 12px; min-width: 200px; }
+.popup-name { font-size: 14px; font-weight: 700; color: #1b2c3e; margin-bottom: 4px; }
+.popup-addr { font-size: 12px; color: #666; }
+.popup-phone { font-size: 12px; color: #2d7a4f; margin-top: 3px; }
+.leaflet-tile { image-rendering: auto; }
+#offline-badge {
+  display: none; position: fixed; bottom: 8px; left: 8px; z-index: 1000;
+  background: rgba(27,44,62,0.88); color: #d4af37;
+  font-family: sans-serif; font-size: 11px; font-weight: 700;
+  padding: 4px 10px; border-radius: 20px; letter-spacing: 0.5px;
+  border: 1px solid rgba(212,175,55,0.5);
+}
 </style>
 </head>
 <body>
-<canvas id="map"></canvas>
-<div id="legend">
-  <div class="li"><div class="ld" style="background:#2d3e50"></div>Collector</div>
-  <div class="li"><div class="ld" style="background:#b07d2a"></div>Tehsildar</div>
-  <div class="li"><div class="ld" style="background:#2d7a4f"></div>Legal Aid</div>
-  <div class="li"><div class="ld" style="background:#783232"></div>Police</div>
-  <div class="li"><div class="ld" style="background:#ef4444"></div>Women's</div>
+<div id="offline-badge">📶 Offline Tiles</div>
+<div id="loading">
+  <div id="loading-spinner"></div>
+  <div id="loading-text">Loading map…</div>
 </div>
-<div id="popup">
-  <div id="popup-close" onclick="closePopup()">&#x2715;</div>
-  <div id="popup-name"></div>
-  <div id="popup-addr"></div>
-  <div id="popup-phone"></div>
+<div id="error-msg">
+  <div style="font-size:15px;font-weight:700">Map unavailable offline</div>
+  <p>Connect to the internet to load the map, or download tiles for offline use.</p>
+  <button id="retry-btn" onclick="initMap()">Retry</button>
 </div>
-<div id="count"></div>
-<div id="zoom-btns">
-  <div class="zbtn" id="zin">+</div>
-  <div class="zbtn" id="zout">−</div>
-</div>
+<div id="map"></div>
+
 <script>
 var OFFICES = ${officesJSON};
 var USER = ${userLocJSON};
 var COLORS = ${colorsJSON};
-
-// India bounding box
-var LAT_MIN = 6.5, LAT_MAX = 37.5, LNG_MIN = 67.0, LNG_MAX = 99.0;
-var BASE_PADDING = 28;
-
-var canvas = document.getElementById('map');
-var ctx = canvas.getContext('2d');
-var W, H;
-var markers = [];
-var activeIdx = -1;
-
-// Pan & zoom state
-var scale = 1.0;
-var panX = 0, panY = 0;
-var MIN_SCALE = 0.7, MAX_SCALE = 5.0;
-
-// Simplified Indian state boundary polygons [lat, lng]
-var STATES = [
-  { name:'J&K', cx:34.2, cy:76.3, pts:[[37.1,73.8],[36.8,74.5],[35.5,74.2],[34.6,75.7],[34.8,76.7],[35.0,77.8],[34.2,79.4],[33.7,78.4],[32.5,79.7],[31.8,78.7],[30.8,78.2],[31.1,77.4],[31.8,76.5],[31.5,76.0],[31.0,75.4],[31.8,74.5],[32.3,73.8],[33.0,73.2],[34.5,73.0],[37.1,73.8]] },
-  { name:'Himachal\nPradesh', cx:31.8, cy:77.5, pts:[[32.5,79.7],[31.8,78.7],[30.8,78.2],[31.1,77.4],[31.8,76.5],[31.5,76.0],[31.0,75.4],[30.2,74.3],[29.8,75.2],[30.5,76.5],[29.8,78.5],[30.5,78.8],[31.0,79.5],[32.5,79.7]] },
-  { name:'Punjab', cx:31.0, cy:74.8, pts:[[32.3,73.8],[31.8,74.5],[31.5,76.0],[31.0,75.4],[30.2,74.3],[29.1,73.3],[29.8,71.5],[30.5,72.0],[31.5,73.0],[32.3,73.8]] },
-  { name:'Haryana', cx:29.1, cy:76.1, pts:[[31.0,75.4],[31.5,76.0],[31.8,77.0],[30.8,78.2],[29.8,78.5],[28.5,77.5],[28.0,76.8],[28.0,76.0],[28.5,75.5],[29.1,73.3],[30.2,74.3],[31.0,75.4]] },
-  { name:'Delhi', cx:28.65, cy:77.1, pts:[[28.9,76.8],[29.2,77.35],[28.8,77.6],[28.4,77.5],[28.1,77.0],[28.9,76.8]] },
-  { name:'Uttarakhand', cx:30.0, cy:79.5, pts:[[31.8,77.0],[30.8,78.2],[29.8,78.5],[30.5,78.8],[31.0,79.5],[32.5,79.7],[34.2,79.4],[33.7,78.4],[33.0,77.8],[32.4,77.1],[31.8,77.0]] },
-  { name:'UP', cx:27.0, cy:80.5, pts:[[31.8,77.0],[30.8,77.5],[29.8,78.5],[28.5,77.5],[28.0,76.8],[27.0,77.5],[26.5,77.0],[26.0,81.0],[25.5,83.5],[25.0,84.5],[25.2,85.5],[26.0,86.0],[26.5,84.0],[27.5,84.0],[28.0,83.0],[28.5,83.5],[29.4,81.0],[29.5,79.5],[30.8,78.2],[31.8,77.0]] },
-  { name:'Rajasthan', cx:26.5, cy:73.5, pts:[[30.2,69.5],[30.0,70.0],[29.8,71.0],[30.0,72.5],[29.1,73.3],[28.5,72.2],[28.0,72.5],[27.2,70.3],[26.3,68.9],[25.6,68.5],[24.4,68.8],[23.5,68.1],[23.0,70.0],[22.5,72.0],[23.0,74.5],[24.0,76.5],[25.5,77.5],[26.5,77.0],[27.0,77.5],[28.0,76.8],[28.5,75.5],[29.1,73.3],[30.2,74.3],[30.2,69.5]] },
-  { name:'Gujarat', cx:22.5, cy:71.0, pts:[[24.5,68.1],[24.0,68.8],[22.5,69.5],[22.4,70.9],[21.9,72.1],[20.6,72.9],[19.2,73.1],[18.9,72.8],[20.9,72.8],[21.5,72.5],[22.8,72.1],[22.4,69.7],[23.1,68.4],[24.5,68.1]] },
-  { name:'MP', cx:23.5, cy:78.5, pts:[[26.5,77.0],[26.0,81.0],[25.5,83.5],[24.5,82.5],[24.0,81.0],[22.5,81.5],[21.5,80.5],[20.5,80.5],[20.0,79.0],[21.0,78.0],[21.5,76.5],[22.0,74.5],[23.0,74.5],[24.5,77.5],[25.5,77.5],[26.5,77.0]] },
-  { name:'Chhattisgarh', cx:21.0, cy:81.8, pts:[[25.5,83.5],[25.0,84.5],[24.5,82.5],[24.0,81.0],[22.5,81.5],[21.5,80.5],[20.5,80.5],[19.5,80.5],[19.0,82.5],[19.5,84.0],[20.3,84.5],[20.5,84.5],[21.0,84.0],[22.0,83.5],[22.5,83.0],[22.5,82.5],[23.5,82.5],[25.5,83.5]] },
-  { name:'Bihar', cx:25.5, cy:85.5, pts:[[27.5,84.0],[26.5,84.0],[26.0,86.0],[25.2,85.5],[25.0,84.5],[24.5,82.5],[25.5,83.5],[26.0,87.5],[27.0,87.0],[27.5,84.0]] },
-  { name:'Jharkhand', cx:23.5, cy:85.5, pts:[[25.0,84.5],[24.5,82.5],[23.5,82.5],[22.5,83.0],[22.0,83.5],[21.5,85.5],[22.0,87.0],[22.5,87.5],[23.5,87.5],[24.5,87.5],[25.2,85.5],[25.0,84.5]] },
-  { name:'West\nBengal', cx:23.5, cy:87.5, pts:[[27.5,88.8],[27.0,87.0],[26.0,87.5],[25.5,88.0],[24.5,87.5],[23.5,87.5],[22.5,87.5],[22.0,87.0],[21.5,87.5],[22.3,88.3],[23.6,88.1],[24.3,88.4],[24.9,88.0],[25.4,88.9],[26.6,89.2],[27.5,88.8]] },
-  { name:'Sikkim', cx:27.5, cy:88.5, pts:[[28.0,88.4],[28.5,88.1],[29.4,88.8],[28.5,88.8],[27.5,88.8],[28.0,88.4]] },
-  { name:'Assam', cx:26.2, cy:92.5, pts:[[27.5,88.8],[26.6,89.2],[25.4,88.9],[24.9,89.8],[24.1,91.4],[23.3,91.8],[23.1,92.6],[24.2,93.0],[25.1,94.7],[27.3,96.2],[27.1,91.6],[28.5,88.1],[28.0,88.4],[27.5,88.8]] },
-  { name:'Meghalaya', cx:25.5, cy:91.4, pts:[[26.6,89.2],[25.4,88.9],[24.9,89.8],[24.1,91.4],[23.3,91.8],[24.5,92.0],[25.5,91.8],[26.5,91.0],[26.6,89.2]] },
-  { name:'Arunachal', cx:28.0, cy:94.0, pts:[[29.4,97.4],[28.5,96.7],[27.7,95.1],[27.0,92.2],[27.1,91.6],[27.3,96.2],[29.4,97.4]] },
-  { name:'Nagaland', cx:26.2, cy:94.5, pts:[[27.3,96.2],[25.1,94.7],[24.2,93.0],[25.5,93.5],[26.5,94.5],[27.3,96.2]] },
-  { name:'Manipur', cx:24.7, cy:93.8, pts:[[25.5,93.5],[24.2,93.0],[23.1,92.6],[23.3,91.8],[24.2,93.5],[24.7,94.5],[25.5,93.5]] },
-  { name:'Mizoram', cx:23.3, cy:92.7, pts:[[23.3,91.8],[23.1,92.6],[22.5,92.5],[22.0,92.0],[22.0,93.0],[23.0,93.5],[24.2,93.0],[23.3,91.8]] },
-  { name:'Tripura', cx:23.8, cy:91.5, pts:[[24.5,92.0],[23.5,91.5],[23.0,91.0],[22.5,91.5],[23.0,92.5],[23.5,92.5],[24.5,92.0]] },
-  { name:'Odisha', cx:20.5, cy:84.5, pts:[[22.5,87.5],[22.0,87.0],[21.5,87.5],[20.5,86.5],[19.5,85.0],[19.0,84.0],[19.5,80.5],[20.5,80.5],[21.5,80.5],[22.5,81.5],[22.0,83.5],[22.5,83.0],[23.5,82.5],[22.5,87.5]] },
-  { name:'Maharashtra', cx:19.5, cy:76.0, pts:[[22.0,74.5],[21.5,76.5],[21.0,78.0],[20.0,79.0],[20.5,80.5],[19.5,80.5],[19.0,80.5],[18.5,83.5],[17.9,83.2],[17.8,82.2],[17.2,82.2],[16.5,81.1],[15.9,80.5],[15.5,80.2],[15.7,79.0],[16.0,78.5],[16.8,77.5],[17.0,76.5],[18.0,75.5],[18.9,72.8],[19.2,73.1],[20.6,72.9],[21.5,72.5],[22.5,72.5],[22.0,74.5]] },
-  { name:'Goa', cx:15.35, cy:74.0, pts:[[15.8,73.9],[14.9,74.1],[15.0,74.4],[15.8,74.1],[15.8,73.9]] },
-  { name:'Karnataka', cx:14.5, cy:76.5, pts:[[18.0,75.5],[17.0,76.5],[16.8,77.5],[16.0,78.5],[15.7,79.0],[15.5,80.2],[14.5,79.9],[13.6,80.3],[12.6,80.2],[11.8,79.9],[11.5,77.5],[12.3,74.9],[14.0,74.4],[15.7,73.9],[16.7,73.5],[18.0,75.5]] },
-  { name:'Telangana', cx:17.8, cy:79.5, pts:[[19.9,77.5],[19.0,78.5],[18.5,79.5],[18.5,83.5],[17.9,83.2],[17.8,82.2],[17.2,82.2],[16.5,81.1],[16.5,80.0],[17.5,79.0],[18.0,78.5],[19.9,77.5]] },
-  { name:'Andhra\nPradesh', cx:15.5, cy:80.0, pts:[[19.9,77.5],[18.0,78.5],[17.5,79.0],[16.5,80.0],[16.5,81.1],[15.9,80.5],[16.7,82.3],[18.5,83.5],[18.4,83.5],[17.9,83.2],[17.2,82.2],[16.5,81.1],[15.9,80.5],[15.5,80.2],[15.0,80.4],[14.5,79.9],[13.6,80.3],[12.6,80.2],[13.1,80.3],[14.1,80.1],[15.0,80.4],[16.7,82.3],[18.2,83.8],[18.5,84.4],[19.3,84.7],[19.9,77.5]] },
-  { name:'Tamil Nadu', cx:10.5, cy:78.5, pts:[[13.5,80.2],[12.6,80.2],[11.8,79.9],[10.5,79.7],[9.6,78.2],[8.8,77.5],[8.5,77.1],[9.1,76.6],[10.5,76.2],[11.5,75.8],[12.3,74.9],[11.8,79.9],[13.6,80.3],[13.5,80.2]] },
-  { name:'Kerala', cx:10.5, cy:76.5, pts:[[12.3,74.9],[11.5,75.8],[10.5,76.2],[9.1,76.6],[8.5,77.1],[8.4,76.9],[8.1,77.0],[8.4,78.0],[9.6,78.2],[10.5,76.2],[11.5,77.5],[12.3,74.9]] },
-];
-
-// State label centroids
-var STATE_LABELS = STATES.map(function(s) { return { name: s.name, cx: s.cx, cy: s.cy }; });
-
-function worldToScreen(lat, lng) {
-  var pw = W;
-  var ph = H;
-  var bw = LNG_MAX - LNG_MIN;
-  var bh = LAT_MAX - LAT_MIN;
-  var aspect = pw / ph;
-  var bAspect = bw / bh;
-  var drawW, drawH, offX, offY;
-  if (bAspect > aspect) {
-    drawW = pw - BASE_PADDING * 2;
-    drawH = drawW / bAspect;
-    offX = BASE_PADDING;
-    offY = (ph - drawH) / 2;
-  } else {
-    drawH = ph - BASE_PADDING * 2;
-    drawW = drawH * bAspect;
-    offX = (pw - drawW) / 2;
-    offY = BASE_PADDING;
-  }
-  var sx = offX + (lng - LNG_MIN) / bw * drawW;
-  var sy = offY + (1 - (lat - LAT_MIN) / bh) * drawH;
-  // Apply scale & pan (scale around center)
-  var cx = W / 2, cy = H / 2;
-  return [cx + (sx - cx) * scale + panX, cy + (sy - cy) * scale + panY];
+var IS_NATIVE = ${isNative ? "true" : "false"};
+var OFFLINE_TILES = ${offlineTilesAvailable ? "true" : "false"};
+var pendingTiles = {};
+if (OFFLINE_TILES) {
+  var badge = document.getElementById('offline-badge');
+  if (badge) badge.style.display = 'block';
 }
+var map = null;
 
-function drawStates() {
-  STATES.forEach(function(state) {
-    if (!state.pts || state.pts.length < 2) return;
-    ctx.beginPath();
-    var first = worldToScreen(state.pts[0][0], state.pts[0][1]);
-    ctx.moveTo(first[0], first[1]);
-    for (var i = 1; i < state.pts.length; i++) {
-      var p = worldToScreen(state.pts[i][0], state.pts[i][1]);
-      ctx.lineTo(p[0], p[1]);
+function notify(data) {
+  try {
+    if (window.ReactNativeWebView) {
+      window.ReactNativeWebView.postMessage(JSON.stringify(data));
     }
-    ctx.closePath();
-    ctx.fillStyle = 'rgba(45,110,160,0.13)';
-    ctx.fill();
-    ctx.strokeStyle = 'rgba(180,200,220,0.28)';
-    ctx.lineWidth = 0.8;
-    ctx.stroke();
+  } catch(e) {}
+}
+
+function makeMarkerIcon(color) {
+  var svg = '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="34" viewBox="0 0 24 34">' +
+    '<path d="M12 0C5.4 0 0 5.4 0 12c0 9 12 22 12 22S24 21 24 12C24 5.4 18.6 0 12 0z" fill="' + color + '" stroke="#fff" stroke-width="1.5"/>' +
+    '<circle cx="12" cy="12" r="5" fill="#fff" opacity="0.9"/>' +
+    '</svg>';
+  return L.icon({
+    iconUrl: 'data:image/svg+xml;base64,' + btoa(svg),
+    iconSize: [24, 34], iconAnchor: [12, 34], popupAnchor: [0, -34]
   });
 }
 
-function drawStateLabels() {
-  if (scale < 1.4) return;
-  ctx.font = '9px sans-serif';
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  STATES.forEach(function(state) {
-    var p = worldToScreen(state.cx, state.cy);
-    var lines = state.name.split('\n');
-    ctx.fillStyle = 'rgba(255,255,255,0.30)';
-    lines.forEach(function(line, i) {
-      var offset = (i - (lines.length - 1) / 2) * 11;
-      ctx.fillText(line, p[0], p[1] + offset);
-    });
+function makeUserIcon() {
+  var svg = '<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 22 22">' +
+    '<circle cx="11" cy="11" r="11" fill="rgba(66,133,244,0.2)"/>' +
+    '<circle cx="11" cy="11" r="7" fill="#4285F4" stroke="#fff" stroke-width="2"/>' +
+    '</svg>';
+  return L.icon({
+    iconUrl: 'data:image/svg+xml;base64,' + btoa(svg),
+    iconSize: [22, 22], iconAnchor: [11, 11], popupAnchor: [0, -11]
   });
 }
 
-function drawGrid() {
-  ctx.strokeStyle = 'rgba(255,255,255,0.03)';
-  ctx.lineWidth = 1;
-  for (var lat = 10; lat <= 35; lat += 5) {
-    var p1 = worldToScreen(lat, LNG_MIN);
-    var p2 = worldToScreen(lat, LNG_MAX);
-    ctx.beginPath(); ctx.moveTo(p1[0], p1[1]); ctx.lineTo(p2[0], p2[1]); ctx.stroke();
+// Custom tile layer that bridges to native for caching
+var CachedTileLayer = (typeof L !== 'undefined') ? L.TileLayer.extend({
+  createTile: function(coords, done) {
+    var img = document.createElement('img');
+    img.setAttribute('role', 'presentation');
+    img.setAttribute('crossorigin', 'anonymous');
+
+    var key = coords.z + '/' + coords.x + '/' + coords.y;
+    var url = 'https://tile.openstreetmap.org/' + key + '.png';
+
+    if (IS_NATIVE) {
+      pendingTiles[key] = { img: img, done: done };
+      notify({ type: 'getTile', z: coords.z, x: coords.x, y: coords.y, url: url });
+    } else {
+      img.src = url;
+      img.onload = function() { done(null, img); };
+      img.onerror = function(e) { done(e, img); };
+    }
+    return img;
   }
-  for (var lng = 70; lng <= 98; lng += 5) {
-    var q1 = worldToScreen(LAT_MIN, lng);
-    var q2 = worldToScreen(LAT_MAX, lng);
-    ctx.beginPath(); ctx.moveTo(q1[0], q1[1]); ctx.lineTo(q2[0], q2[1]); ctx.stroke();
+}) : null;
+
+window.receiveTile = function(key, dataUri) {
+  var pending = pendingTiles[key];
+  if (pending) {
+    pending.img.src = dataUri;
+    pending.img.onload = function() { pending.done(null, pending.img); };
+    pending.img.onerror = function(e) { pending.done(e, pending.img); };
+    delete pendingTiles[key];
   }
-}
+};
 
-function drawIndiaOutline() {
-  var pts = [
-    [37.1,73.8],[36.8,74.5],[34.7,78.5],[34.2,79.4],[32.5,79.7],
-    [31.8,78.7],[30.8,78.2],[31.1,77.4],[30.5,76.5],[29.8,75.2],
-    [29.3,73.5],[27.8,72.1],[27.2,70.3],[24.5,68.1],[23.1,68.4],
-    [22.4,69.7],[22.8,72.1],[20.9,72.8],[18.9,72.8],[16.8,73.2],
-    [14.8,74.1],[12.1,74.8],[8.4,76.9],[8.1,77.5],[8.4,78.2],
-    [9.2,79.1],[10.9,79.8],[11.8,79.8],[13.1,80.3],[14.1,80.1],
-    [15.0,80.4],[16.7,82.3],[18.2,83.8],[18.5,84.4],[19.3,84.7],
-    [20.3,86.8],[21.2,87.5],[22.3,88.3],[23.6,88.1],[24.3,88.4],
-    [24.9,88.0],[25.4,88.9],[26.6,89.2],[27.5,88.8],[28.0,88.4],
-    [28.5,88.1],[29.4,88.8],[27.1,91.6],[27.0,92.2],[27.7,95.1],
-    [28.5,96.7],[29.4,97.4],[27.3,96.2],[25.1,94.7],[24.2,93.0],
-    [23.1,92.6],[23.3,91.8],[24.1,91.4],[24.9,89.8],[24.4,88.2],
-    [21.9,86.2],[20.7,85.9],[19.8,85.1],[18.4,83.5],[17.8,83.2],
-    [17.2,82.2],[16.5,81.1],[15.9,80.5],[15.5,80.2],[14.5,79.9],
-    [13.6,80.3],[12.6,80.2],[11.8,79.9],[10.5,79.7],[9.6,78.2],
-    [8.8,77.5],[8.5,77.1],[9.1,76.6],[10.5,76.2],[11.5,75.8],
-    [12.3,74.9],[14.0,74.4],[15.7,73.9],[17.9,73.2],[19.2,73.1],
-    [20.6,72.9],[21.5,72.6],[21.9,72.1],[22.4,70.9],[22.5,69.7],
-    [22.0,68.9],[23.5,68.1],[24.4,68.8],[25.6,68.5],[26.3,68.9],
-    [27.2,70.0],[27.7,70.9],[28.3,72.1],[29.1,73.3],[30.2,74.3],
-    [31.0,75.4],[31.8,76.5],[32.4,77.1],[33.0,77.8],[33.7,78.4],
-    [34.2,79.4],[35.0,77.8],[34.8,76.7],[34.6,75.7],[35.5,74.2],
-    [36.2,73.9],[37.1,73.8]
-  ];
-  ctx.beginPath();
-  var first = worldToScreen(pts[0][0], pts[0][1]);
-  ctx.moveTo(first[0], first[1]);
-  for (var i = 1; i < pts.length; i++) {
-    var p = worldToScreen(pts[i][0], pts[i][1]);
-    ctx.lineTo(p[0], p[1]);
-  }
-  ctx.closePath();
-  ctx.fillStyle = 'rgba(30,55,80,0.6)';
-  ctx.fill();
-  ctx.strokeStyle = 'rgba(212,175,55,0.55)';
-  ctx.lineWidth = 1.8 / scale;
-  ctx.stroke();
-}
-
-function resize() {
-  W = canvas.width = window.innerWidth;
-  H = canvas.height = window.innerHeight;
-  draw();
-}
-
-function draw() {
-  ctx.clearRect(0, 0, W, H);
-  ctx.fillStyle = '#0f1d2b';
-  ctx.fillRect(0, 0, W, H);
-  drawGrid();
-  drawIndiaOutline();
-  drawStates();
-  drawStateLabels();
-
-  markers = [];
-  OFFICES.forEach(function(o, i) {
-    var pos = worldToScreen(o.lat, o.lng);
-    var x = pos[0], y = pos[1];
-    var r = Math.max(6, 9 * Math.min(scale, 1.5) / 1.5);
-    markers.push({ x: x, y: y, r: r, idx: i });
+function addOffices() {
+  OFFICES.forEach(function(o) {
     var color = COLORS[o.type] || '#2d3e50';
-    var isActive = i === activeIdx;
-    if (isActive) {
-      ctx.beginPath();
-      ctx.arc(x, y, r + 5, 0, Math.PI * 2);
-      ctx.fillStyle = color + '44';
-      ctx.fill();
-    }
-    ctx.beginPath();
-    ctx.arc(x, y, r, 0, Math.PI * 2);
-    ctx.fillStyle = color;
-    ctx.fill();
-    ctx.strokeStyle = isActive ? '#d4af37' : '#fff';
-    ctx.lineWidth = isActive ? 2.5 : 1.8;
-    ctx.stroke();
+    var icon = makeMarkerIcon(color);
+    var phoneHtml = o.phone ? '<div class="popup-phone">📞 ' + o.phone + '</div>' : '';
+    var popup = '<div class="popup-content"><div class="popup-name">' + o.name + '</div>' +
+      '<div class="popup-addr">' + o.address + '</div>' + phoneHtml + '</div>';
+    L.marker([o.lat, o.lng], { icon: icon })
+      .bindPopup(popup, { className: 'custom-popup', maxWidth: 280 })
+      .addTo(map);
   });
-
   if (USER) {
-    var up = worldToScreen(USER.lat, USER.lng);
-    ctx.beginPath(); ctx.arc(up[0], up[1], 13, 0, Math.PI * 2); ctx.fillStyle = 'rgba(66,133,244,0.2)'; ctx.fill();
-    ctx.beginPath(); ctx.arc(up[0], up[1], 7, 0, Math.PI * 2); ctx.fillStyle = '#4285F4'; ctx.fill();
-    ctx.strokeStyle = '#fff'; ctx.lineWidth = 2.5; ctx.stroke();
+    L.marker([USER.lat, USER.lng], { icon: makeUserIcon() })
+      .bindPopup('<div class="popup-content"><div class="popup-name">Your Location</div></div>',
+        { className: 'custom-popup' })
+      .addTo(map);
   }
-
-  document.getElementById('count').textContent = OFFICES.length + ' office' + (OFFICES.length !== 1 ? 's' : '') + ' in your region';
 }
 
-function closePopup() {
-  document.getElementById('popup').style.display = 'none';
-  activeIdx = -1;
-  draw();
+function initMap() {
+  document.getElementById('loading').style.display = 'flex';
+  document.getElementById('error-msg').style.display = 'none';
+
+  try {
+    if (typeof L === 'undefined') {
+      throw new Error('Leaflet not loaded');
+    }
+
+    if (map) {
+      map.remove();
+      map = null;
+    }
+
+    map = L.map('map', {
+      center: [${centerLat}, ${centerLng}],
+      zoom: ${zoom},
+      zoomControl: true,
+      attributionControl: true
+    });
+
+    var tileLayer;
+    if (IS_NATIVE && CachedTileLayer) {
+      tileLayer = new CachedTileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+        maxZoom: 18, tileSize: 256, crossOrigin: true
+      });
+    } else {
+      tileLayer = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+        maxZoom: 18, crossOrigin: true
+      });
+    }
+
+    tileLayer.addTo(map);
+
+    tileLayer.on('load', function() {
+      document.getElementById('loading').style.display = 'none';
+      notify({ type: 'mapReady' });
+    });
+
+    tileLayer.on('tileerror', function() {
+      // Individual tile errors are expected when offline, don't show error screen
+    });
+
+    // Hide loading after 3 seconds regardless
+    setTimeout(function() {
+      document.getElementById('loading').style.display = 'none';
+    }, 3000);
+
+    addOffices();
+
+    if (OFFICES.length > 0 && !USER) {
+      var group = L.featureGroup(
+        OFFICES.map(function(o) { return L.marker([o.lat, o.lng]); })
+      );
+      map.fitBounds(group.getBounds().pad(0.1));
+    }
+
+    map.invalidateSize();
+
+  } catch(e) {
+    document.getElementById('loading').style.display = 'none';
+    document.getElementById('error-msg').style.display = 'flex';
+    notify({ type: 'mapError', message: e.message });
+  }
 }
 
-function showPopup(o) {
-  var p = document.getElementById('popup');
-  document.getElementById('popup-name').textContent = o.name;
-  document.getElementById('popup-addr').textContent = o.address;
-  var ph = document.getElementById('popup-phone');
-  ph.textContent = o.phone ? '📞 ' + o.phone : '';
-  p.style.display = 'block';
-}
-
-function getCanvasPoint(e) {
-  var rect = canvas.getBoundingClientRect();
-  var scaleX = canvas.width / rect.width;
-  var scaleY = canvas.height / rect.height;
-  var clientX = e.touches ? e.touches[0].clientX : e.clientX;
-  var clientY = e.touches ? e.touches[0].clientY : e.clientY;
-  return { x: (clientX - rect.left) * scaleX, y: (clientY - rect.top) * scaleY };
-}
-
-var dragStart = null, panStart = null, lastTouchDist = null, tapStartTime = 0, tapStartPos = null;
-
-function applyZoom(delta, cx, cy) {
-  var prev = scale;
-  scale = Math.max(MIN_SCALE, Math.min(MAX_SCALE, scale * delta));
-  var ratio = scale / prev;
-  panX = cx + (panX - cx) * ratio;
-  panY = cy + (panY - cy) * ratio;
-  draw();
-}
-
-canvas.addEventListener('mousedown', function(e) {
-  dragStart = { x: e.clientX, y: e.clientY };
-  panStart = { x: panX, y: panY };
-  tapStartTime = Date.now();
-  tapStartPos = { x: e.clientX, y: e.clientY };
-});
-canvas.addEventListener('mousemove', function(e) {
-  if (!dragStart) return;
-  panX = panStart.x + (e.clientX - dragStart.x);
-  panY = panStart.y + (e.clientY - dragStart.y);
-  draw();
-});
-canvas.addEventListener('mouseup', function(e) {
-  var moved = dragStart && (Math.abs(e.clientX - tapStartPos.x) > 5 || Math.abs(e.clientY - tapStartPos.y) > 5);
-  dragStart = null;
-  if (!moved) { handleTap(e); }
-});
-canvas.addEventListener('wheel', function(e) {
-  e.preventDefault();
-  applyZoom(e.deltaY < 0 ? 1.12 : 0.88, e.clientX, e.clientY);
-}, { passive: false });
-
-canvas.addEventListener('touchstart', function(e) {
-  e.preventDefault();
-  if (e.touches.length === 2) {
-    lastTouchDist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
+window.addEventListener('load', function() {
+  if (typeof L !== 'undefined') {
+    initMap();
   } else {
-    dragStart = { x: e.touches[0].clientX, y: e.touches[0].clientY };
-    panStart = { x: panX, y: panY };
-    tapStartTime = Date.now();
-    tapStartPos = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+    document.getElementById('loading').style.display = 'none';
+    document.getElementById('error-msg').style.display = 'flex';
   }
-}, { passive: false });
+});
 
-canvas.addEventListener('touchmove', function(e) {
-  e.preventDefault();
-  if (e.touches.length === 2) {
-    var dist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
-    if (lastTouchDist) {
-      var cx = (e.touches[0].clientX + e.touches[1].clientX) / 2;
-      var cy2 = (e.touches[0].clientY + e.touches[1].clientY) / 2;
-      applyZoom(dist / lastTouchDist, cx, cy2);
-    }
-    lastTouchDist = dist;
-  } else if (dragStart && e.touches.length === 1) {
-    panX = panStart.x + (e.touches[0].clientX - dragStart.x);
-    panY = panStart.y + (e.touches[0].clientY - dragStart.y);
-    draw();
+window.addEventListener('error', function(e) {
+  if (e.target && (e.target.tagName === 'SCRIPT' || e.target.tagName === 'LINK')) {
+    document.getElementById('loading').style.display = 'none';
+    document.getElementById('error-msg').style.display = 'flex';
   }
-}, { passive: false });
-
-canvas.addEventListener('touchend', function(e) {
-  lastTouchDist = null;
-  if (e.changedTouches.length === 1 && tapStartPos) {
-    var dx = e.changedTouches[0].clientX - tapStartPos.x;
-    var dy = e.changedTouches[0].clientY - tapStartPos.y;
-    var dt = Date.now() - tapStartTime;
-    if (Math.abs(dx) < 8 && Math.abs(dy) < 8 && dt < 300) {
-      handleTap({ clientX: e.changedTouches[0].clientX, clientY: e.changedTouches[0].clientY });
-    }
-  }
-  dragStart = null;
-}, { passive: false });
-
-function handleTap(e) {
-  var pt = getCanvasPoint(e);
-  var hit = -1;
-  for (var i = markers.length - 1; i >= 0; i--) {
-    var m = markers[i];
-    var dx = pt.x - m.x, dy = pt.y - m.y;
-    if (Math.sqrt(dx*dx + dy*dy) <= m.r + 8) { hit = m.idx; break; }
-  }
-  if (hit >= 0) {
-    if (activeIdx === hit) { closePopup(); } else { activeIdx = hit; draw(); showPopup(OFFICES[hit]); }
-  } else { closePopup(); }
-}
-
-document.getElementById('zin').addEventListener('click', function() { applyZoom(1.25, W/2, H/2); });
-document.getElementById('zout').addEventListener('click', function() { applyZoom(0.80, W/2, H/2); });
-
-window.addEventListener('resize', resize);
-resize();
+}, true);
 </script>
 </body>
 </html>`;
 };
 
-export function LeafletMap({ offices, userLocation, markerColors, onFallback }: LeafletMapProps) {
-  const html = getMapHTML(offices, userLocation ?? null, markerColors);
+export function LeafletMap({
+  offices,
+  userLocation,
+  markerColors,
+  onFallback,
+  offlineTilesAvailable = false,
+}: LeafletMapProps) {
+  const webviewRef = useRef<WebView>(null);
+
+  const handleMessage = useCallback(async (event: WebViewMessageEvent) => {
+    try {
+      const data = JSON.parse(event.nativeEvent.data);
+
+      if (data.type === "getTile") {
+        const { z, x, y } = data;
+        const key = `${z}/${x}/${y}`;
+
+        let dataUri = await getCachedTileBase64(z, x, y);
+        if (!dataUri) {
+          dataUri = await fetchAndCacheTile(z, x, y);
+        }
+
+        if (dataUri && webviewRef.current) {
+          webviewRef.current.injectJavaScript(
+            `window.receiveTile(${JSON.stringify(key)}, ${JSON.stringify(dataUri)}); void 0;`
+          );
+        }
+      } else if (data.type === "mapError") {
+        onFallback?.();
+      }
+    } catch {}
+  }, [onFallback]);
+
+  const html = getMapHTML(
+    offices,
+    userLocation ?? null,
+    markerColors,
+    Platform.OS !== "web",
+    offlineTilesAvailable
+  );
 
   if (Platform.OS === "web") {
     return (
       <View style={styles.container}>
         <iframe
           srcDoc={html}
-          style={{ width: "100%", height: "100%", border: "none" } as React.CSSProperties}
+          style={WEB_IFRAME_STYLE}
+          title="Map"
         />
       </View>
     );
@@ -443,21 +354,38 @@ export function LeafletMap({ offices, userLocation, markerColors, onFallback }: 
   return (
     <View style={styles.container}>
       <WebView
+        ref={webviewRef}
         source={{ html }}
         style={styles.webview}
         scrollEnabled={false}
         javaScriptEnabled
         domStorageEnabled
         originWhitelist={["*"]}
+        allowsInlineMediaPlayback
+        mixedContentMode="always"
+        onMessage={handleMessage}
+        onError={() => onFallback?.()}
       />
     </View>
   );
 }
 
+const WEB_IFRAME_STYLE: React.CSSProperties = {
+  position: "absolute",
+  top: 0,
+  left: 0,
+  right: 0,
+  bottom: 0,
+  width: "100%",
+  height: "100%",
+  border: "none",
+};
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-  },
+    position: "relative",
+  } as any,
   webview: {
     flex: 1,
   },

@@ -490,6 +490,21 @@ export default function SettingsScreen() {
 
           <View style={[styles.divider, { backgroundColor: colors.border }]} />
 
+          <Pressable
+            onPress={() => router.push("/developer" as any)}
+            style={({ pressed }) => [styles.row, { opacity: pressed ? 0.7 : 1 }]}
+          >
+            <View style={styles.rowLeft}>
+              <Feather name="github" size={18} color={colors.navy} />
+              <Text style={[styles.rowLabel, { color: colors.foreground, fontSize: fs.base }]}>
+                Meet the Developer
+              </Text>
+            </View>
+            <Feather name="chevron-right" size={16} color={colors.mutedForeground} />
+          </Pressable>
+
+          <View style={[styles.divider, { backgroundColor: colors.border }]} />
+
           <View style={[styles.row, { paddingVertical: 14 }]}>
             <View style={styles.rowLeft}>
               <Feather name="info" size={18} color={colors.navy} />

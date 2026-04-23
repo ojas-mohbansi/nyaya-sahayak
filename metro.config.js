@@ -1,3 +1,16 @@
 const { getDefaultConfig } = require("expo/metro-config");
+const path = require("path");
 
-module.exports = getDefaultConfig(__dirname);
+const config = getDefaultConfig(__dirname);
+
+config.watchFolders = [__dirname];
+
+config.resolver = {
+  ...config.resolver,
+  blockList: [
+    /\.local\/.*/,
+    /\.git\/.*/,
+  ],
+};
+
+module.exports = config;

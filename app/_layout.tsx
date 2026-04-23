@@ -50,6 +50,7 @@ function RootLayoutNav() {
       <Stack.Screen name="rights/[id]" options={{ headerShown: false }} />
       <Stack.Screen name="procedure/[id]" options={{ headerShown: false }} />
       <Stack.Screen name="share" options={{ headerShown: false }} />
+      <Stack.Screen name="developer" options={{ headerShown: false }} />
     </Stack>
   );
 }
