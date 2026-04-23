@@ -52,12 +52,7 @@ export function OfficeCard({ office }: OfficeCardProps) {
             { backgroundColor: (typeColors[office.type] || colors.primary) + "15" },
           ]}
         >
-          <Text
-            style={[
-              styles.typeText,
-              { color: typeColors[office.type] || colors.primary },
-            ]}
-          >
+          <Text style={[styles.typeText, { color: typeColors[office.type] || colors.primary }]}>
             {office.type.replace("-", " ").toUpperCase()}
           </Text>
         </View>

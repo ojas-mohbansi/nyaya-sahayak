@@ -2,15 +2,7 @@ import { Feather } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 import React, { useCallback, useState } from "react";
-import {
-  Dimensions,
-  Platform,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from "react-native";
+import { Dimensions, Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { CategoryCard } from "@/components/CategoryCard";
@@ -23,7 +15,6 @@ import { useColors } from "@/hooks/useColors";
 import { useFontSizes } from "@/hooks/useFontSizes";
 import { useTranslation } from "@/hooks/useTranslation";
 import { rightsCategories } from "@/data/rights";
-import { procedures } from "@/data/procedures";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 
@@ -31,22 +22,87 @@ const DAILY_RIGHTS = [
   { id: "art21", title: "Right to Life & Liberty", ref: "Article 21", catId: "constitutional" },
   { id: "art14", title: "Right to Equality", ref: "Article 14", catId: "constitutional" },
   { id: "art19", title: "Right to Freedom", ref: "Article 19", catId: "constitutional" },
-  { id: "art32", title: "Right to Constitutional Remedies", ref: "Article 32", catId: "constitutional" },
+  {
+    id: "art32",
+    title: "Right to Constitutional Remedies",
+    ref: "Article 32",
+    catId: "constitutional",
+  },
   { id: "rti-basics", title: "Right to Information", ref: "RTI Act 2005", catId: "rti" },
-  { id: "cr_007", title: "Right Against Arbitrary Arrest", ref: "Article 22", catId: "constitutional" },
-  { id: "dv-rights", title: "Protection from Domestic Violence", ref: "DV Act 2005", catId: "domestic-violence" },
-  { id: "workplace-harassment", title: "Right Against Workplace Harassment", ref: "POSH Act 2013", catId: "family" },
-  { id: "mgnrega-guarantee", title: "MGNREGA Employment Guarantee", ref: "MGNREGA 2005", catId: "mgnrega" },
-  { id: "cyber-crime-rights", title: "Rights of Cybercrime Victims", ref: "IT Act 2000", catId: "cyber" },
+  {
+    id: "cr_007",
+    title: "Right Against Arbitrary Arrest",
+    ref: "Article 22",
+    catId: "constitutional",
+  },
+  {
+    id: "dv-rights",
+    title: "Protection from Domestic Violence",
+    ref: "DV Act 2005",
+    catId: "domestic-violence",
+  },
+  {
+    id: "workplace-harassment",
+    title: "Right Against Workplace Harassment",
+    ref: "POSH Act 2013",
+    catId: "family",
+  },
+  {
+    id: "mgnrega-guarantee",
+    title: "MGNREGA Employment Guarantee",
+    ref: "MGNREGA 2005",
+    catId: "mgnrega",
+  },
+  {
+    id: "cyber-crime-rights",
+    title: "Rights of Cybercrime Victims",
+    ref: "IT Act 2000",
+    catId: "cyber",
+  },
 ];
 
-const TRENDING = ["RTI", "Domestic Violence", "Ration Card", "MGNREGA", "Consumer Rights", "Aadhaar Update"];
+const TRENDING = [
+  "RTI",
+  "Domestic Violence",
+  "Ration Card",
+  "MGNREGA",
+  "Consumer Rights",
+  "Aadhaar Update",
+];
 
 const QUICK_ACTIONS = [
-  { label: "File RTI", sub: "Right to Information", icon: "file-text" as const, color: "#2d3e50", route: "procedure", id: "rti-application" },
-  { label: "Women's Help", sub: "Helpline & Rights", icon: "heart" as const, color: "#783232", route: "tab", tab: "emergency" },
-  { label: "Find Legal Aid", sub: "Nearest DLSA", icon: "map-pin" as const, color: "#2d7a4f", route: "tab", tab: "map" },
-  { label: "Documents", sub: "Aadhaar, Voter ID…", icon: "credit-card" as const, color: "#b07d2a", route: "tab", tab: "apply" },
+  {
+    label: "File RTI",
+    sub: "Right to Information",
+    icon: "file-text" as const,
+    color: "#2d3e50",
+    route: "procedure",
+    id: "rti-application",
+  },
+  {
+    label: "Women's Help",
+    sub: "Helpline & Rights",
+    icon: "heart" as const,
+    color: "#783232",
+    route: "tab",
+    tab: "emergency",
+  },
+  {
+    label: "Find Legal Aid",
+    sub: "Nearest DLSA",
+    icon: "map-pin" as const,
+    color: "#2d7a4f",
+    route: "tab",
+    tab: "map",
+  },
+  {
+    label: "Documents",
+    sub: "Aadhaar, Voter ID…",
+    icon: "credit-card" as const,
+    color: "#b07d2a",
+    route: "tab",
+    tab: "apply",
+  },
 ];
 
 export default function HomeScreen() {
@@ -74,7 +130,7 @@ export default function HomeScreen() {
     }
   };
 
-  const handleQuickAction = (action: typeof QUICK_ACTIONS[number]) => {
+  const handleQuickAction = (action: (typeof QUICK_ACTIONS)[number]) => {
     if (action.route === "procedure" && action.id) {
       router.push({ pathname: "/procedure/[id]", params: { id: action.id } });
     } else if (action.route === "tab" && action.tab) {
@@ -86,9 +142,12 @@ export default function HomeScreen() {
     router.push("/search" as any);
   };
 
-  const handleRecentPress = (item: typeof recentItems[number]) => {
+  const handleRecentPress = (item: (typeof recentItems)[number]) => {
     if (item.type === "right" && item.categoryId) {
-      router.push({ pathname: "/rights/[id]", params: { id: item.id, categoryId: item.categoryId } });
+      router.push({
+        pathname: "/rights/[id]",
+        params: { id: item.id, categoryId: item.categoryId },
+      });
     } else {
       router.push({ pathname: "/procedure/[id]", params: { id: item.id } });
     }
@@ -114,7 +173,11 @@ export default function HomeScreen() {
             <Text style={[styles.heroTagline, { fontSize: fs.xs }]}>{t.legalLiteracy}</Text>
           </View>
           <View style={styles.headerActions}>
-            <Pressable onPress={() => router.push("/bookmarks")} style={styles.headerBtn} hitSlop={8}>
+            <Pressable
+              onPress={() => router.push("/bookmarks")}
+              style={styles.headerBtn}
+              hitSlop={8}
+            >
               <Feather name="bookmark" size={20} color="#fff" />
               {bookmarks.length > 0 && (
                 <View style={[styles.badge, { backgroundColor: colors.gold }]}>
@@ -122,7 +185,11 @@ export default function HomeScreen() {
                 </View>
               )}
             </Pressable>
-            <Pressable onPress={() => router.push("/settings" as any)} style={styles.headerBtn} hitSlop={8}>
+            <Pressable
+              onPress={() => router.push("/settings" as any)}
+              style={styles.headerBtn}
+              hitSlop={8}
+            >
               <Feather name="settings" size={20} color="rgba(255,255,255,0.7)" />
             </Pressable>
           </View>
@@ -170,9 +237,15 @@ export default function HomeScreen() {
 
         {/* Right of the Day */}
         <View style={styles.rotdRow}>
-          <Text style={[styles.rotdSectionLabel, { color: colors.navy, fontSize: fs.lg }]}>{t.rightOfTheDay}</Text>
+          <Text style={[styles.rotdSectionLabel, { color: colors.navy, fontSize: fs.lg }]}>
+            {t.rightOfTheDay}
+          </Text>
           <Pressable onPress={rotateROTD} hitSlop={8} style={styles.rotateBtn}>
-            <Text style={[styles.rotateBtnText, { color: colors.mutedForeground, fontSize: fs.sm }]}>{t.rotate}</Text>
+            <Text
+              style={[styles.rotateBtnText, { color: colors.mutedForeground, fontSize: fs.sm }]}
+            >
+              {t.rotate}
+            </Text>
           </Pressable>
         </View>
         <Pressable
@@ -244,14 +317,27 @@ export default function HomeScreen() {
                     },
                   ]}
                 >
-                  <View style={[styles.recentIcon, { backgroundColor: item.type === "right" ? colors.navy + "18" : colors.gold + "28" }]}>
+                  <View
+                    style={[
+                      styles.recentIcon,
+                      {
+                        backgroundColor:
+                          item.type === "right" ? colors.navy + "18" : colors.gold + "28",
+                      },
+                    ]}
+                  >
                     <Feather
                       name={item.type === "right" ? "book-open" : "file-text"}
                       size={16}
                       color={item.type === "right" ? colors.navy : colors.warn}
                     />
                   </View>
-                  <Text style={[styles.recentTitle, { color: colors.foreground }]} numberOfLines={2}>{item.title}</Text>
+                  <Text
+                    style={[styles.recentTitle, { color: colors.foreground }]}
+                    numberOfLines={2}
+                  >
+                    {item.title}
+                  </Text>
                   <Text style={[styles.recentType, { color: colors.mutedForeground }]}>
                     {item.type === "right" ? "Right" : "Procedure"}
                   </Text>
@@ -302,8 +388,12 @@ export default function HomeScreen() {
         >
           <Text style={styles.emergencyEmoji}>🚨</Text>
           <View style={{ flex: 1 }}>
-            <Text style={[styles.emergencyTitle, { color: colors.burgundy, fontSize: fs.sm }]}>{t.emergencyHelplines}</Text>
-            <Text style={[styles.emergencySub, { color: colors.mutedForeground, fontSize: fs.xs }]}>Women · Police · Child · NALSA</Text>
+            <Text style={[styles.emergencyTitle, { color: colors.burgundy, fontSize: fs.sm }]}>
+              {t.emergencyHelplines}
+            </Text>
+            <Text style={[styles.emergencySub, { color: colors.mutedForeground, fontSize: fs.xs }]}>
+              Women · Police · Child · NALSA
+            </Text>
           </View>
           <Pressable
             onPress={(e) => {

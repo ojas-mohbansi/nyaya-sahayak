@@ -1,6 +1,6 @@
 import { Feather } from "@expo/vector-icons";
 import * as DocumentPicker from "expo-document-picker";
-import * as FileSystem from "expo-file-system";
+import * as FileSystem from "expo-file-system/legacy";
 import { router } from "expo-router";
 import * as Sharing from "expo-sharing";
 import React, { useMemo, useState } from "react";
@@ -41,7 +41,7 @@ function buildContentPackage() {
       content: item.content,
       reference: item.reference,
       categoryId: cat.id,
-    }))
+    })),
   );
   const procs = procedures.map((p) => ({
     id: p.id,
@@ -78,16 +78,26 @@ export default function ShareScreen() {
   const [importing, setImporting] = useState(false);
   const [importResult, setImportResult] = useState<ImportResult | null>(null);
 
-  const totalRights = useMemo(
-    () => rightsCategories.reduce((s, c) => s + c.items.length, 0),
-    []
-  );
+  const totalRights = useMemo(() => rightsCategories.reduce((s, c) => s + c.items.length, 0), []);
 
   const fingerprint = useMemo(() => {
     const rights = rightsCategories.flatMap((cat) =>
-      cat.items.map((item) => ({ id: item.id, title: item.title, summary: item.summary, content: item.content, reference: item.reference, categoryId: cat.id }))
+      cat.items.map((item) => ({
+        id: item.id,
+        title: item.title,
+        summary: item.summary,
+        content: item.content,
+        reference: item.reference,
+        categoryId: cat.id,
+      })),
     );
-    const procs = procedures.map((p) => ({ id: p.id, title: p.title, description: p.description, steps: p.steps, documents: p.documents }));
+    const procs = procedures.map((p) => ({
+      id: p.id,
+      title: p.title,
+      description: p.description,
+      steps: p.steps,
+      documents: p.documents,
+    }));
     return djb2(JSON.stringify({ rights, procedures: procs }));
   }, []);
 
@@ -138,7 +148,8 @@ export default function ShareScreen() {
         setImportResult({
           ok: false,
           message: "Unrecognised format",
-          detail: "This file is not a valid Nyaya content package. Only .nyaya packages are supported.",
+          detail:
+            "This file is not a valid Nyaya content package. Only .nyaya packages are supported.",
         });
         return;
       }
@@ -177,22 +188,21 @@ export default function ShareScreen() {
         <View style={{ width: 22 }} />
       </View>
 
-      <ScrollView
-        contentContainerStyle={styles.scroll}
-        showsVerticalScrollIndicator={false}
-      >
+      <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
         <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <View style={styles.cardHeader}>
             <Feather name="package" size={18} color={colors.navy} />
             <Text style={[styles.cardTitle, { color: colors.foreground }]}>Content Inventory</Text>
           </View>
           <View style={styles.statGrid}>
-            {([
-              { label: "Rights", value: String(totalRights), icon: "book-open" },
-              { label: "Procedures", value: String(procedures.length), icon: "file-text" },
-              { label: "Languages", value: String(SUPPORTED_LANGUAGES.length), icon: "globe" },
-              { label: "Version", value: APP_VERSION, icon: "tag" },
-            ] as const).map((s) => (
+            {(
+              [
+                { label: "Rights", value: String(totalRights), icon: "book-open" },
+                { label: "Procedures", value: String(procedures.length), icon: "file-text" },
+                { label: "Languages", value: String(SUPPORTED_LANGUAGES.length), icon: "globe" },
+                { label: "Version", value: APP_VERSION, icon: "tag" },
+              ] as const
+            ).map((s) => (
               <View key={s.label} style={[styles.statBox, { backgroundColor: colors.secondary }]}>
                 <Feather name={s.icon as any} size={14} color={colors.navy} />
                 <Text style={[styles.statValue, { color: colors.foreground }]}>{s.value}</Text>
@@ -202,7 +212,9 @@ export default function ShareScreen() {
           </View>
           <View style={[styles.fpRow, { backgroundColor: colors.secondary }]}>
             <Feather name="shield" size={13} color={colors.mutedForeground} />
-            <Text style={[styles.fpLabel, { color: colors.mutedForeground }]}>Content fingerprint</Text>
+            <Text style={[styles.fpLabel, { color: colors.mutedForeground }]}>
+              Content fingerprint
+            </Text>
             <Text style={[styles.fpValue, { color: colors.foreground }]}>{fingerprint}</Text>
           </View>
         </View>
@@ -213,7 +225,8 @@ export default function ShareScreen() {
             <Text style={[styles.cardTitle, { color: colors.foreground }]}>Export Package</Text>
           </View>
           <Text style={[styles.cardDesc, { color: colors.mutedForeground }]}>
-            Generate a signed content package and share it with any device via Bluetooth file transfer, WhatsApp, email, or AirDrop — no internet required.
+            Generate a signed content package and share it with any device via Bluetooth file
+            transfer, WhatsApp, email, or AirDrop — no internet required.
           </Text>
           <Pressable
             onPress={handleExport}
@@ -240,7 +253,8 @@ export default function ShareScreen() {
             <Text style={[styles.cardTitle, { color: colors.foreground }]}>Verify & Import</Text>
           </View>
           <Text style={[styles.cardDesc, { color: colors.mutedForeground }]}>
-            Pick a .nyaya file received from a legal aid clinic or trusted source. The fingerprint is verified to confirm content integrity before import.
+            Pick a .nyaya file received from a legal aid clinic or trusted source. The fingerprint
+            is verified to confirm content integrity before import.
           </Text>
           <Pressable
             onPress={handleImport}
@@ -264,7 +278,9 @@ export default function ShareScreen() {
               style={[
                 styles.resultBox,
                 {
-                  backgroundColor: importResult.ok ? colors.success + "15" : colors.destructive + "12",
+                  backgroundColor: importResult.ok
+                    ? colors.success + "15"
+                    : colors.destructive + "12",
                   borderColor: importResult.ok ? colors.success + "40" : colors.destructive + "30",
                 },
               ]}
@@ -293,10 +309,17 @@ export default function ShareScreen() {
           )}
         </View>
 
-        <View style={[styles.infoBox, { backgroundColor: colors.secondary, borderColor: colors.border }]}>
+        <View
+          style={[
+            styles.infoBox,
+            { backgroundColor: colors.secondary, borderColor: colors.border },
+          ]}
+        >
           <Feather name="info" size={14} color={colors.mutedForeground} />
           <Text style={[styles.infoText, { color: colors.mutedForeground }]}>
-            Content packages let legal aid clinics distribute verified legal information to community members offline. Any sharing channel your device supports can be used — Bluetooth, WiFi Direct, or messaging apps.
+            Content packages let legal aid clinics distribute verified legal information to
+            community members offline. Any sharing channel your device supports can be used —
+            Bluetooth, WiFi Direct, or messaging apps.
           </Text>
         </View>
       </ScrollView>

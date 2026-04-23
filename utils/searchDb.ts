@@ -54,10 +54,9 @@ async function _init(): Promise<void> {
     `);
   }
 
-  const meta = await d.getFirstAsync<{ value: string }>(
-    "SELECT value FROM fts_meta WHERE id = ?",
-    [META_KEY]
-  );
+  const meta = await d.getFirstAsync<{ value: string }>("SELECT value FROM fts_meta WHERE id = ?", [
+    META_KEY,
+  ]);
   if (meta?.value === SEED_VERSION) return;
 
   await d.withTransactionAsync(async () => {
@@ -66,23 +65,24 @@ async function _init(): Promise<void> {
       for (const item of cat.items) {
         await d.runAsync(
           "INSERT INTO rights_fts(id, category_id, title, summary) VALUES (?,?,?,?)",
-          [item.id, cat.id, item.title, item.summary]
+          [item.id, cat.id, item.title, item.summary],
         );
       }
     }
 
     await d.runAsync("DELETE FROM procedures_fts");
     for (const proc of procedures) {
-      await d.runAsync(
-        "INSERT INTO procedures_fts(id, title, summary) VALUES (?,?,?)",
-        [proc.id, proc.title, proc.description]
-      );
+      await d.runAsync("INSERT INTO procedures_fts(id, title, summary) VALUES (?,?,?)", [
+        proc.id,
+        proc.title,
+        proc.description,
+      ]);
     }
 
-    await d.runAsync(
-      "INSERT OR REPLACE INTO fts_meta(id, value) VALUES (?,?)",
-      [META_KEY, SEED_VERSION]
-    );
+    await d.runAsync("INSERT OR REPLACE INTO fts_meta(id, value) VALUES (?,?)", [
+      META_KEY,
+      SEED_VERSION,
+    ]);
   });
 
   (d as any)._useFts5 = useFts5;
@@ -119,7 +119,7 @@ export async function ftsSearch(query: string): Promise<FTSResult[]> {
         summary: string;
       }>(
         "SELECT id, category_id, title, summary FROM rights_fts WHERE rights_fts MATCH ? ORDER BY rank",
-        [terms]
+        [terms],
       );
 
       const procs = await d.getAllAsync<{
@@ -128,7 +128,7 @@ export async function ftsSearch(query: string): Promise<FTSResult[]> {
         summary: string;
       }>(
         "SELECT id, title, summary FROM procedures_fts WHERE procedures_fts MATCH ? ORDER BY rank",
-        [terms]
+        [terms],
       );
 
       return [
@@ -157,16 +157,16 @@ export async function ftsSearch(query: string): Promise<FTSResult[]> {
     summary: string;
   }>(
     "SELECT id, category_id, title, summary FROM rights_fts WHERE title LIKE ? OR summary LIKE ?",
-    [like, like]
+    [like, like],
   );
   const procs = await d.getAllAsync<{
     id: string;
     title: string;
     summary: string;
-  }>(
-    "SELECT id, title, summary FROM procedures_fts WHERE title LIKE ? OR summary LIKE ?",
-    [like, like]
-  );
+  }>("SELECT id, title, summary FROM procedures_fts WHERE title LIKE ? OR summary LIKE ?", [
+    like,
+    like,
+  ]);
 
   return [
     ...rights.map((r) => ({

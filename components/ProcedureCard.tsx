@@ -14,7 +14,14 @@ interface ProcedureCardProps {
   onPress: () => void;
 }
 
-export const ProcedureCard = React.memo(function ProcedureCard({ title, category, icon, color, stepsCount, onPress }: ProcedureCardProps) {
+export const ProcedureCard = React.memo(function ProcedureCard({
+  title,
+  category,
+  icon,
+  color,
+  stepsCount,
+  onPress,
+}: ProcedureCardProps) {
   const colors = useColors();
   const fonts = useFontSizes();
 
@@ -35,10 +42,14 @@ export const ProcedureCard = React.memo(function ProcedureCard({ title, category
         <Feather name={icon as any} size={20} color={color} />
       </View>
       <View style={styles.content}>
-        <Text style={[styles.title, { color: colors.foreground, fontSize: fonts.base }]}>{title}</Text>
+        <Text style={[styles.title, { color: colors.foreground, fontSize: fonts.base }]}>
+          {title}
+        </Text>
         <View style={styles.meta}>
           <View style={[styles.badge, { backgroundColor: colors.secondary }]}>
-            <Text style={[styles.badgeText, { color: colors.mutedForeground, fontSize: fonts.xs }]}>{category}</Text>
+            <Text style={[styles.badgeText, { color: colors.mutedForeground, fontSize: fonts.xs }]}>
+              {category}
+            </Text>
           </View>
           <Text style={[styles.steps, { color: colors.mutedForeground, fontSize: fonts.xs }]}>
             {stepsCount} steps

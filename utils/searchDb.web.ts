@@ -19,10 +19,7 @@ export async function ftsSearch(query: string): Promise<FTSResult[]> {
 
   for (const cat of rightsCategories) {
     for (const item of cat.items) {
-      if (
-        item.title.toLowerCase().includes(q) ||
-        item.summary.toLowerCase().includes(q)
-      ) {
+      if (item.title.toLowerCase().includes(q) || item.summary.toLowerCase().includes(q)) {
         results.push({
           id: item.id,
           title: item.title,
@@ -35,10 +32,7 @@ export async function ftsSearch(query: string): Promise<FTSResult[]> {
   }
 
   for (const proc of procedures) {
-    if (
-      proc.title.toLowerCase().includes(q) ||
-      proc.description.toLowerCase().includes(q)
-    ) {
+    if (proc.title.toLowerCase().includes(q) || proc.description.toLowerCase().includes(q)) {
       results.push({
         id: proc.id,
         title: proc.title,

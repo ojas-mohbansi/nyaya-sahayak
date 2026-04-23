@@ -21,7 +21,8 @@
         "NSLocationWhenInUseUsageDescription": "We need your location to show nearby government offices and share in emergencies.",
         "NSSpeechRecognitionUsageDescription": "Allow Nyaya Sahayak to use speech recognition for voice search.",
         "NSMicrophoneUsageDescription": "Allow Nyaya Sahayak to use your microphone for voice search."
-      }
+      },
+      "buildNumber": "0"
     },
     "android": {
       "package": "com.nyayasahayak.mobile",
@@ -34,7 +35,8 @@
         "android.permission.RECORD_AUDIO",
         "android.permission.ACCESS_COARSE_LOCATION",
         "android.permission.ACCESS_FINE_LOCATION"
-      ]
+      ],
+      "versionCode": 0
     },
     "web": {
       "favicon": "./assets/images/icon.png"

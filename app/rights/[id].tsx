@@ -47,6 +47,7 @@ export default function RightsDetailScreen() {
     return () => {
       Speech.stop();
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [item?.id]);
 
   if (!item || !category) {
@@ -80,7 +81,7 @@ export default function RightsDetailScreen() {
 
   const handleWhatsApp = async () => {
     const text = encodeURIComponent(
-      `*${item.title}*\n_${item.reference}_\n\n${item.summary}\n\n${item.content.slice(0, 500)}...\n\nVia Nyaya Sahayak`
+      `*${item.title}*\n_${item.reference}_\n\n${item.summary}\n\n${item.content.slice(0, 500)}...\n\nVia Nyaya Sahayak`,
     );
     const url = `https://wa.me/?text=${text}`;
     try {
@@ -211,7 +212,12 @@ export default function RightsDetailScreen() {
               size={14}
               color={speaking ? category.color : colors.mutedForeground}
             />
-            <Text style={[styles.actionBtnText, { color: speaking ? category.color : colors.mutedForeground }]}>
+            <Text
+              style={[
+                styles.actionBtnText,
+                { color: speaking ? category.color : colors.mutedForeground },
+              ]}
+            >
               {speaking ? "Stop" : "Listen"}
             </Text>
           </Pressable>
@@ -227,8 +233,17 @@ export default function RightsDetailScreen() {
               },
             ]}
           >
-            <Feather name={copied ? "check" : "copy"} size={14} color={copied ? colors.success : colors.mutedForeground} />
-            <Text style={[styles.actionBtnText, { color: copied ? colors.success : colors.mutedForeground }]}>
+            <Feather
+              name={copied ? "check" : "copy"}
+              size={14}
+              color={copied ? colors.success : colors.mutedForeground}
+            />
+            <Text
+              style={[
+                styles.actionBtnText,
+                { color: copied ? colors.success : colors.mutedForeground },
+              ]}
+            >
               {copied ? "Copied!" : "Copy"}
             </Text>
           </Pressable>
@@ -272,7 +287,8 @@ export default function RightsDetailScreen() {
         >
           <Feather name="info" size={14} color={colors.warn} />
           <Text style={[styles.disclaimerText, { color: colors.warn }]}>
-            This is general legal information, not legal advice. Consult a lawyer for your specific situation.
+            This is general legal information, not legal advice. Consult a lawyer for your specific
+            situation.
           </Text>
         </View>
       </ScrollView>

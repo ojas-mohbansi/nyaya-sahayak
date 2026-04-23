@@ -7,7 +7,6 @@ import * as Speech from "expo-speech";
 import React, { useCallback, useEffect, useState } from "react";
 import {
   Alert,
-  Linking,
   Platform,
   Pressable,
   ScrollView,
@@ -70,6 +69,7 @@ export default function ProcedureDetailScreen() {
         }
       }
     });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [procedure?.id]);
 
   useEffect(() => {
@@ -100,6 +100,38 @@ export default function ProcedureDetailScreen() {
     });
   };
 
+  const procedureId = procedure?.id ?? "";
+
+  const toggleStep = useCallback(
+    (index: number) => {
+      if (!procedureId) return;
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      setCompletedSteps((prev) => {
+        const next = new Set(prev);
+        if (next.has(index)) next.delete(index);
+        else next.add(index);
+        AsyncStorage.setItem(storageKey(procedureId, "steps"), JSON.stringify([...next]));
+        return next;
+      });
+    },
+    [procedureId],
+  );
+
+  const toggleDoc = useCallback(
+    (index: number) => {
+      if (!procedureId) return;
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      setCheckedDocs((prev) => {
+        const next = new Set(prev);
+        if (next.has(index)) next.delete(index);
+        else next.add(index);
+        AsyncStorage.setItem(storageKey(procedureId, "docs"), JSON.stringify([...next]));
+        return next;
+      });
+    },
+    [procedureId],
+  );
+
   if (!procedure) {
     return (
       <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -120,34 +152,6 @@ export default function ProcedureDetailScreen() {
     toggleProcedureBookmark(procedure.id);
   };
 
-  const toggleStep = useCallback(
-    (index: number) => {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      setCompletedSteps((prev) => {
-        const next = new Set(prev);
-        if (next.has(index)) next.delete(index);
-        else next.add(index);
-        AsyncStorage.setItem(storageKey(procedure.id, "steps"), JSON.stringify([...next]));
-        return next;
-      });
-    },
-    [procedure.id]
-  );
-
-  const toggleDoc = useCallback(
-    (index: number) => {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      setCheckedDocs((prev) => {
-        const next = new Set(prev);
-        if (next.has(index)) next.delete(index);
-        else next.add(index);
-        AsyncStorage.setItem(storageKey(procedure.id, "docs"), JSON.stringify([...next]));
-        return next;
-      });
-    },
-    [procedure.id]
-  );
-
   const handleReset = () => {
     Alert.alert(
       "Reset Progress",
@@ -167,7 +171,7 @@ export default function ProcedureDetailScreen() {
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
           },
         },
-      ]
+      ],
     );
   };
 
@@ -181,14 +185,7 @@ export default function ProcedureDetailScreen() {
   };
 
   const progress =
-    procedure.steps.length > 0
-      ? (completedSteps.size / procedure.steps.length) * 100
-      : 0;
-  const docsProgress =
-    procedure.documents.length > 0
-      ? (checkedDocs.size / procedure.documents.length) * 100
-      : 0;
-
+    procedure.steps.length > 0 ? (completedSteps.size / procedure.steps.length) * 100 : 0;
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <View
@@ -249,7 +246,9 @@ export default function ProcedureDetailScreen() {
       >
         {/* Documents Checklist */}
         <View style={styles.sectionHeader}>
-          <Text style={[styles.sectionTitle, { color: colors.navy, fontSize: fonts.lg }]}>Required Documents</Text>
+          <Text style={[styles.sectionTitle, { color: colors.navy, fontSize: fonts.lg }]}>
+            Required Documents
+          </Text>
           {checkedDocs.size > 0 && (
             <Text style={[styles.sectionBadge, { color: colors.success }]}>
               {checkedDocs.size}/{procedure.documents.length} ready
@@ -352,11 +351,7 @@ export default function ProcedureDetailScreen() {
                     },
                   ]}
                 >
-                  <Feather
-                    name={letterCopied ? "check" : "copy"}
-                    size={16}
-                    color="#fff"
-                  />
+                  <Feather name={letterCopied ? "check" : "copy"} size={16} color="#fff" />
                   <Text style={styles.copyLetterBtnText}>
                     {letterCopied ? "Copied!" : "Copy Letter"}
                   </Text>
@@ -368,10 +363,7 @@ export default function ProcedureDetailScreen() {
 
         {/* Eligibility Calculator */}
         {procedure.eligibilityType && (
-          <EligibilityCalculator
-            type={procedure.eligibilityType}
-            accentColor={procedure.color}
-          />
+          <EligibilityCalculator type={procedure.eligibilityType} accentColor={procedure.color} />
         )}
 
         {/* Steps */}
@@ -402,9 +394,7 @@ export default function ProcedureDetailScreen() {
                 {completedSteps.has(idx) ? (
                   <Feather name="check" size={12} color="#fff" />
                 ) : (
-                  <Text style={[styles.stepNum, { color: colors.mutedForeground }]}>
-                    {idx + 1}
-                  </Text>
+                  <Text style={[styles.stepNum, { color: colors.mutedForeground }]}>{idx + 1}</Text>
                 )}
               </View>
               <Text
@@ -480,9 +470,7 @@ export default function ProcedureDetailScreen() {
             ]}
           >
             <Feather name="refresh-ccw" size={14} color={colors.destructive} />
-            <Text style={[styles.resetBtnText, { color: colors.destructive }]}>
-              Reset Progress
-            </Text>
+            <Text style={[styles.resetBtnText, { color: colors.destructive }]}>Reset Progress</Text>
           </Pressable>
         )}
       </ScrollView>

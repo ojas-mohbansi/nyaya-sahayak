@@ -13,7 +13,14 @@ interface EmergencyButtonProps {
   onPress: () => void;
 }
 
-export function EmergencyButton({ name, number, description, icon, color, onPress }: EmergencyButtonProps) {
+export function EmergencyButton({
+  name,
+  number,
+  description,
+  icon,
+  color,
+  onPress,
+}: EmergencyButtonProps) {
   const colors = useColors();
 
   const handlePress = () => {
@@ -39,7 +46,9 @@ export function EmergencyButton({ name, number, description, icon, color, onPres
       </View>
       <View style={styles.content}>
         <Text style={styles.name}>{name}</Text>
-        <Text style={styles.description} numberOfLines={1}>{description}</Text>
+        <Text style={styles.description} numberOfLines={1}>
+          {description}
+        </Text>
       </View>
       <View style={styles.numberWrap}>
         <Text style={styles.number}>{number}</Text>

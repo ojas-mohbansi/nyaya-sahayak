@@ -8,10 +8,7 @@ export function DisclaimerBanner() {
 
   return (
     <View
-      style={[
-        styles.container,
-        { backgroundColor: colors.goldLight, borderRadius: colors.radius },
-      ]}
+      style={[styles.container, { backgroundColor: colors.goldLight, borderRadius: colors.radius }]}
     >
       <Feather name="info" size={16} color={colors.warn} />
       <Text style={[styles.text, { color: colors.warn }]}>

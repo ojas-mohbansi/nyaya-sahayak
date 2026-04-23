@@ -24,6 +24,7 @@ const colors = {
     navy: "#2d3e50",
     success: "#2d7a4f",
     warn: "#b07d2a",
+    error: "#c04040",
   },
   dark: {
     text: "#e8dfd0",
@@ -50,6 +51,7 @@ const colors = {
     navy: "#4a7a9b",
     success: "#3aab6a",
     warn: "#c8963a",
+    error: "#e85a5a",
   },
   highContrast: {
     text: "#000000",
@@ -76,6 +78,7 @@ const colors = {
     navy: "#000000",
     success: "#006600",
     warn: "#cc6600",
+    error: "#cc0000",
   },
   radius: 14,
 };

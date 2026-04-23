@@ -5,7 +5,6 @@ import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
-  Alert,
   Animated,
   Linking,
   Platform,
@@ -106,7 +105,7 @@ async function fetchGitHubData(): Promise<CachedData> {
     }),
     fetch(
       `https://api.github.com/users/${GITHUB_USERNAME}/repos?sort=pushed&per_page=6&type=owner`,
-      { headers: { Accept: "application/vnd.github+json" } }
+      { headers: { Accept: "application/vnd.github+json" } },
     ),
   ]);
 
@@ -143,7 +142,7 @@ function SkeletonBox({
           duration: 700,
           useNativeDriver: Platform.OS !== "web",
         }),
-      ])
+      ]),
     );
     loop.start();
     return () => loop.stop();
@@ -179,12 +178,7 @@ function StatBadge({
   fs: ReturnType<typeof useFontSizes>;
 }) {
   return (
-    <View
-      style={[
-        statStyles.badge,
-        { backgroundColor: colors.card, borderColor: colors.border },
-      ]}
-    >
+    <View style={[statStyles.badge, { backgroundColor: colors.card, borderColor: colors.border }]}>
       <Feather name={icon as any} size={16} color={colors.primary} />
       <Text style={[statStyles.value, { color: colors.foreground, fontSize: fs.lg }]}>
         {value >= 1000 ? `${(value / 1000).toFixed(1)}k` : value}
@@ -384,9 +378,7 @@ export default function DeveloperScreen() {
     Linking.openURL(GITHUB_PROFILE_URL);
   }, []);
 
-  const memberSince = data?.user.created_at
-    ? new Date(data.user.created_at).getFullYear()
-    : null;
+  const memberSince = data?.user.created_at ? new Date(data.user.created_at).getFullYear() : null;
 
   const topInsets = Platform.OS === "web" ? 67 : insets.top;
 
@@ -466,7 +458,10 @@ export default function DeveloperScreen() {
               {error}
             </Text>
             <Pressable
-              onPress={() => { setLoading(true); load(true); }}
+              onPress={() => {
+                setLoading(true);
+                load(true);
+              }}
               style={[styles.retryBtn, { backgroundColor: colors.navy }]}
             >
               <Text style={[styles.retryBtnText, { fontSize: fs.sm }]}>Try Again</Text>
@@ -489,9 +484,7 @@ export default function DeveloperScreen() {
                     contentFit="cover"
                     transition={300}
                   />
-                  <View
-                    style={[styles.avatarBadge, { backgroundColor: colors.success }]}
-                  />
+                  <View style={[styles.avatarBadge, { backgroundColor: colors.success }]} />
                 </View>
                 <View style={{ flex: 1, gap: 3 }}>
                   <Text
@@ -507,7 +500,10 @@ export default function DeveloperScreen() {
                   </Text>
                   {memberSince ? (
                     <Text
-                      style={[styles.memberSince, { color: colors.mutedForeground, fontSize: fs.xs }]}
+                      style={[
+                        styles.memberSince,
+                        { color: colors.mutedForeground, fontSize: fs.xs },
+                      ]}
                     >
                       Member since {memberSince}
                     </Text>
@@ -516,9 +512,7 @@ export default function DeveloperScreen() {
               </View>
 
               {data.user.bio ? (
-                <Text
-                  style={[styles.bio, { color: colors.foreground, fontSize: fs.sm }]}
-                >
+                <Text style={[styles.bio, { color: colors.foreground, fontSize: fs.sm }]}>
                   {data.user.bio}
                 </Text>
               ) : null}
@@ -527,7 +521,9 @@ export default function DeveloperScreen() {
                 {data.user.company ? (
                   <View style={styles.metaRow}>
                     <Feather name="briefcase" size={13} color={colors.mutedForeground} />
-                    <Text style={[styles.metaText, { color: colors.mutedForeground, fontSize: fs.xs }]}>
+                    <Text
+                      style={[styles.metaText, { color: colors.mutedForeground, fontSize: fs.xs }]}
+                    >
                       {data.user.company}
                     </Text>
                   </View>
@@ -535,7 +531,9 @@ export default function DeveloperScreen() {
                 {data.user.location ? (
                   <View style={styles.metaRow}>
                     <Feather name="map-pin" size={13} color={colors.mutedForeground} />
-                    <Text style={[styles.metaText, { color: colors.mutedForeground, fontSize: fs.xs }]}>
+                    <Text
+                      style={[styles.metaText, { color: colors.mutedForeground, fontSize: fs.xs }]}
+                    >
                       {data.user.location}
                     </Text>
                   </View>
@@ -614,9 +612,7 @@ export default function DeveloperScreen() {
                 ]}
               >
                 <Feather name="github" size={18} color="#fff" />
-                <Text style={[styles.primaryBtnText, { fontSize: fs.sm }]}>
-                  View Profile
-                </Text>
+                <Text style={[styles.primaryBtnText, { fontSize: fs.sm }]}>View Profile</Text>
               </Pressable>
               <Pressable
                 onPress={handleCopyURL}
@@ -641,10 +637,7 @@ export default function DeveloperScreen() {
             {data.repos.length > 0 ? (
               <>
                 <Text
-                  style={[
-                    styles.sectionTitle,
-                    { color: colors.mutedForeground, fontSize: fs.xs },
-                  ]}
+                  style={[styles.sectionTitle, { color: colors.mutedForeground, fontSize: fs.xs }]}
                 >
                   RECENT REPOSITORIES
                 </Text>

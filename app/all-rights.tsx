@@ -31,7 +31,7 @@ const ALL_RIGHTS: FlatRight[] = rightsCategories.flatMap((cat) =>
     ...item,
     categoryId: cat.id,
     categoryTitle: cat.title,
-  }))
+  })),
 );
 
 const FILTER_LABELS: { id: string; label: string }[] = [
@@ -83,10 +83,7 @@ export default function AllRightsScreen() {
 
       {/* Search */}
       <View
-        style={[
-          styles.searchWrap,
-          { borderColor: colors.border, backgroundColor: colors.card },
-        ]}
+        style={[styles.searchWrap, { borderColor: colors.border, backgroundColor: colors.card }]}
       >
         <Feather name="search" size={16} color={colors.mutedForeground} />
         <TextInput
@@ -119,10 +116,8 @@ export default function AllRightsScreen() {
             style={[
               styles.chip,
               {
-                backgroundColor:
-                  selectedCategory === f.id ? colors.navy : "transparent",
-                borderColor:
-                  selectedCategory === f.id ? colors.navy : colors.border,
+                backgroundColor: selectedCategory === f.id ? colors.navy : "transparent",
+                borderColor: selectedCategory === f.id ? colors.navy : colors.border,
               },
             ]}
           >
@@ -130,8 +125,7 @@ export default function AllRightsScreen() {
               style={[
                 styles.chipText,
                 {
-                  color:
-                    selectedCategory === f.id ? "#fff" : colors.mutedForeground,
+                  color: selectedCategory === f.id ? "#fff" : colors.mutedForeground,
                 },
               ]}
             >

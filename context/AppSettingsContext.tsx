@@ -46,16 +46,13 @@ export function AppSettingsProvider({ children }: { children: React.ReactNode })
     });
   }, []);
 
-  const setSetting = useCallback(
-    <K extends keyof AppSettings>(key: K, value: AppSettings[K]) => {
-      setSettingsState((prev) => {
-        const next = { ...prev, [key]: value };
-        AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(next));
-        return next;
-      });
-    },
-    []
-  );
+  const setSetting = useCallback(<K extends keyof AppSettings>(key: K, value: AppSettings[K]) => {
+    setSettingsState((prev) => {
+      const next = { ...prev, [key]: value };
+      AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+      return next;
+    });
+  }, []);
 
   const setSettings = useCallback((patch: Partial<AppSettings>) => {
     setSettingsState((prev) => {

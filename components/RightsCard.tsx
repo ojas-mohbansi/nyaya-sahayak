@@ -14,7 +14,13 @@ interface RightsCardProps {
   onPress: () => void;
 }
 
-export const RightsCard = React.memo(function RightsCard({ id, title, summary, reference, onPress }: RightsCardProps) {
+export const RightsCard = React.memo(function RightsCard({
+  id,
+  title,
+  summary,
+  reference,
+  onPress,
+}: RightsCardProps) {
   const colors = useColors();
   const fonts = useFontSizes();
   const { isBookmarked, toggleBookmark } = useBookmarks();
@@ -35,8 +41,13 @@ export const RightsCard = React.memo(function RightsCard({ id, title, summary, r
     >
       <View style={styles.header}>
         <View style={{ flex: 1 }}>
-          <Text style={[styles.title, { color: colors.foreground, fontSize: fonts.base }]}>{title}</Text>
-          <Text style={[styles.summary, { color: colors.mutedForeground, fontSize: fonts.sm }]} numberOfLines={2}>
+          <Text style={[styles.title, { color: colors.foreground, fontSize: fonts.base }]}>
+            {title}
+          </Text>
+          <Text
+            style={[styles.summary, { color: colors.mutedForeground, fontSize: fonts.sm }]}
+            numberOfLines={2}
+          >
             {summary}
           </Text>
         </View>
@@ -56,7 +67,10 @@ export const RightsCard = React.memo(function RightsCard({ id, title, summary, r
         </Pressable>
       </View>
       <View style={[styles.refBadge, { backgroundColor: colors.secondary }]}>
-        <Text style={[styles.refText, { color: colors.mutedForeground, fontSize: fonts.xs }]} numberOfLines={1}>
+        <Text
+          style={[styles.refText, { color: colors.mutedForeground, fontSize: fonts.xs }]}
+          numberOfLines={1}
+        >
           {reference}
         </Text>
       </View>

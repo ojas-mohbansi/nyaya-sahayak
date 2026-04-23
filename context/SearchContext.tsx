@@ -1,7 +1,7 @@
-import React, { createContext, useCallback, useContext, useMemo, useState } from "react";
+import React, { createContext, useContext, useMemo, useState } from "react";
 
-import { rightsCategories, type RightsItem } from "@/data/rights";
-import { procedures, type Procedure } from "@/data/procedures";
+import { rightsCategories } from "@/data/rights";
+import { procedures } from "@/data/procedures";
 
 export interface SearchResult {
   id: string;
@@ -54,16 +54,12 @@ export function SearchProvider({ children }: { children: React.ReactNode }) {
     if (!query.trim()) return [];
     const q = query.toLowerCase();
     return allItems.filter(
-      (item) =>
-        item.title.toLowerCase().includes(q) ||
-        item.summary.toLowerCase().includes(q)
+      (item) => item.title.toLowerCase().includes(q) || item.summary.toLowerCase().includes(q),
     );
   }, [query, allItems]);
 
   return (
-    <SearchContext.Provider value={{ query, setQuery, results }}>
-      {children}
-    </SearchContext.Provider>
+    <SearchContext.Provider value={{ query, setQuery, results }}>{children}</SearchContext.Provider>
   );
 }
 

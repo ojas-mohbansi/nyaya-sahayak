@@ -1,8 +1,5 @@
 import { Feather } from "@expo/vector-icons";
-import {
-  ExpoSpeechRecognitionModule,
-  useSpeechRecognitionEvent,
-} from "expo-speech-recognition";
+import { ExpoSpeechRecognitionModule, useSpeechRecognitionEvent } from "expo-speech-recognition";
 import { router } from "expo-router";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
@@ -43,9 +40,17 @@ export default function SearchScreen() {
 
   /* ── Check voice availability on mount ── */
   useEffect(() => {
-    ExpoSpeechRecognitionModule.isRecognitionAvailable().then((avail: boolean) => {
-      setVoiceSupported(avail);
-    }).catch(() => setVoiceSupported(false));
+    try {
+      const avail = ExpoSpeechRecognitionModule.isRecognitionAvailable();
+      const result = avail as unknown as boolean | Promise<boolean>;
+      if (result && typeof (result as Promise<boolean>).then === "function") {
+        (result as Promise<boolean>).then(setVoiceSupported).catch(() => setVoiceSupported(false));
+      } else {
+        setVoiceSupported(Boolean(result));
+      }
+    } catch {
+      setVoiceSupported(false);
+    }
   }, []);
 
   /* ── Pulse animation while listening ── */
@@ -53,9 +58,19 @@ export default function SearchScreen() {
     if (listening) {
       pulseLoop.current = Animated.loop(
         Animated.sequence([
-          Animated.timing(pulseAnim, { toValue: 1.35, duration: 500, easing: Easing.ease, useNativeDriver: true }),
-          Animated.timing(pulseAnim, { toValue: 1, duration: 500, easing: Easing.ease, useNativeDriver: true }),
-        ])
+          Animated.timing(pulseAnim, {
+            toValue: 1.35,
+            duration: 500,
+            easing: Easing.ease,
+            useNativeDriver: true,
+          }),
+          Animated.timing(pulseAnim, {
+            toValue: 1,
+            duration: 500,
+            easing: Easing.ease,
+            useNativeDriver: true,
+          }),
+        ]),
       );
       pulseLoop.current.start();
     } else {
@@ -63,6 +78,7 @@ export default function SearchScreen() {
       pulseAnim.setValue(1);
     }
     return () => pulseLoop.current?.stop();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [listening]);
 
   /* ── Speech recognition events ── */
@@ -107,7 +123,13 @@ export default function SearchScreen() {
     const items: SearchResult[] = [];
     for (const cat of rightsCategories) {
       for (const item of cat.items) {
-        items.push({ id: item.id, title: item.title, summary: item.summary, type: "right", categoryId: cat.id });
+        items.push({
+          id: item.id,
+          title: item.title,
+          summary: item.summary,
+          type: "right",
+          categoryId: cat.id,
+        });
       }
     }
     for (const proc of procedures) {
@@ -118,16 +140,24 @@ export default function SearchScreen() {
 
   useEffect(() => {
     const q = query.trim();
-    if (!q) { setFtsResults([]); return; }
+    if (!q) {
+      setFtsResults([]);
+      return;
+    }
     let cancelled = false;
     const timer = setTimeout(() => {
-      ftsSearch(q).then((r) => {
-        if (!cancelled) setFtsResults(r);
-      }).catch(() => {
-        if (!cancelled) setFtsResults([]);
-      });
+      ftsSearch(q)
+        .then((r) => {
+          if (!cancelled) setFtsResults(r);
+        })
+        .catch(() => {
+          if (!cancelled) setFtsResults([]);
+        });
     }, 120);
-    return () => { cancelled = true; clearTimeout(timer); };
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
   }, [query]);
 
   const results: SearchResult[] = React.useMemo(() => {
@@ -137,15 +167,25 @@ export default function SearchScreen() {
     return allItemsFallback.filter(
       (item) =>
         item.title.toLowerCase().includes(q.toLowerCase()) ||
-        item.summary.toLowerCase().includes(q.toLowerCase())
+        item.summary.toLowerCase().includes(q.toLowerCase()),
     );
   }, [query, ftsResults, allItemsFallback]);
 
-  const trending = ["RTI", "Domestic Violence", "Ration Card", "MGNREGA", "Consumer Rights", "Aadhaar Update"];
+  const trending = [
+    "RTI",
+    "Domestic Violence",
+    "Ration Card",
+    "MGNREGA",
+    "Consumer Rights",
+    "Aadhaar Update",
+  ];
 
   const handleResultPress = (result: SearchResult) => {
     if (result.type === "right" && result.categoryId) {
-      router.push({ pathname: "/rights/[id]", params: { id: result.id, categoryId: result.categoryId } });
+      router.push({
+        pathname: "/rights/[id]",
+        params: { id: result.id, categoryId: result.categoryId },
+      });
     } else {
       router.push({ pathname: "/procedure/[id]", params: { id: result.id } });
     }
@@ -155,7 +195,10 @@ export default function SearchScreen() {
     <View
       style={[
         styles.container,
-        { backgroundColor: colors.background, paddingTop: (Platform.OS === "web" ? 67 : insets.top) + 12 },
+        {
+          backgroundColor: colors.background,
+          paddingTop: (Platform.OS === "web" ? 67 : insets.top) + 12,
+        },
       ]}
     >
       <View style={styles.headerRow}>
@@ -186,11 +229,14 @@ export default function SearchScreen() {
       </View>
 
       {listening && (
-        <View style={[styles.listeningBanner, { backgroundColor: colors.error + "12", borderColor: colors.error + "30" }]}>
+        <View
+          style={[
+            styles.listeningBanner,
+            { backgroundColor: colors.error + "12", borderColor: colors.error + "30" },
+          ]}
+        >
           <Feather name="mic" size={13} color={colors.error} />
-          <Text style={[styles.listeningText, { color: colors.error }]}>
-            Listening… speak now
-          </Text>
+          <Text style={[styles.listeningText, { color: colors.error }]}>Listening… speak now</Text>
           <Pressable onPress={toggleVoice} hitSlop={8}>
             <Feather name="x" size={14} color={colors.error} />
           </Pressable>
@@ -205,7 +251,10 @@ export default function SearchScreen() {
               <Pressable
                 key={tr}
                 onPress={() => setQuery(tr)}
-                style={[styles.trendingChip, { backgroundColor: colors.secondary, borderColor: colors.border }]}
+                style={[
+                  styles.trendingChip,
+                  { backgroundColor: colors.secondary, borderColor: colors.border },
+                ]}
               >
                 <Feather name="trending-up" size={12} color={colors.mutedForeground} />
                 <Text style={[styles.trendingText, { color: colors.foreground }]}>{tr}</Text>
@@ -224,13 +273,20 @@ export default function SearchScreen() {
               onPress={() => handleResultPress(item)}
               style={[
                 styles.resultCard,
-                { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius },
+                {
+                  backgroundColor: colors.card,
+                  borderColor: colors.border,
+                  borderRadius: colors.radius,
+                },
               ]}
             >
               <View
                 style={[
                   styles.resultIcon,
-                  { backgroundColor: item.type === "right" ? colors.navy + "15" : colors.accent + "30" },
+                  {
+                    backgroundColor:
+                      item.type === "right" ? colors.navy + "15" : colors.accent + "30",
+                  },
                 ]}
               >
                 <Feather
@@ -241,17 +297,28 @@ export default function SearchScreen() {
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={[styles.resultTitle, { color: colors.foreground }]}>{item.title}</Text>
-                <Text style={[styles.resultSummary, { color: colors.mutedForeground }]} numberOfLines={2}>
+                <Text
+                  style={[styles.resultSummary, { color: colors.mutedForeground }]}
+                  numberOfLines={2}
+                >
                   {item.summary}
                 </Text>
               </View>
               <View
                 style={[
                   styles.typeBadge,
-                  { backgroundColor: item.type === "right" ? colors.navy + "15" : colors.accent + "30" },
+                  {
+                    backgroundColor:
+                      item.type === "right" ? colors.navy + "15" : colors.accent + "30",
+                  },
                 ]}
               >
-                <Text style={[styles.typeText, { color: item.type === "right" ? colors.navy : colors.warn }]}>
+                <Text
+                  style={[
+                    styles.typeText,
+                    { color: item.type === "right" ? colors.navy : colors.warn },
+                  ]}
+                >
                   {item.type === "right" ? "Right" : "Procedure"}
                 </Text>
               </View>
@@ -261,7 +328,7 @@ export default function SearchScreen() {
             <View style={styles.emptyWrap}>
               <Feather name="search" size={48} color={colors.mutedForeground} />
               <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>
-                No results found for "{query}"
+                No results found for &ldquo;{query}&rdquo;
               </Text>
             </View>
           }

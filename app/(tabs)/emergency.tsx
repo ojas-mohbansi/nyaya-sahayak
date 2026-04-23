@@ -37,8 +37,9 @@ export default function EmergencyScreen() {
         return new Promise((resolve) => {
           if (navigator.geolocation) {
             navigator.geolocation.getCurrentPosition(
-              (pos) => resolve(`${pos.coords.latitude.toFixed(4)},${pos.coords.longitude.toFixed(4)}`),
-              () => resolve("Location unavailable")
+              (pos) =>
+                resolve(`${pos.coords.latitude.toFixed(4)},${pos.coords.longitude.toFixed(4)}`),
+              () => resolve("Location unavailable"),
             );
           } else {
             resolve("Location unavailable");
@@ -62,22 +63,18 @@ export default function EmergencyScreen() {
       return;
     }
 
-    Alert.alert(
-      `Call ${name}?`,
-      `Dial ${number} now. Your location will be shared.`,
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Call Now",
-          style: "destructive",
-          onPress: async () => {
-            const loc = await getLocation();
-            setLocationText(loc);
-            safeOpenURL(`tel:${number}`, "the dialer");
-          },
+    Alert.alert(`Call ${name}?`, `Dial ${number} now. Your location will be shared.`, [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Call Now",
+        style: "destructive",
+        onPress: async () => {
+          const loc = await getLocation();
+          setLocationText(loc);
+          safeOpenURL(`tel:${number}`, "the dialer");
         },
-      ]
-    );
+      },
+    ]);
   };
 
   const handleSOS = async () => {
@@ -88,22 +85,18 @@ export default function EmergencyScreen() {
       return;
     }
 
-    Alert.alert(
-      "SOS Emergency",
-      "This will call Police (100) and share your location. Continue?",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "CALL NOW",
-          style: "destructive",
-          onPress: async () => {
-            const loc = await getLocation();
-            setLocationText(loc);
-            safeOpenURL("tel:100", "the dialer");
-          },
+    Alert.alert("SOS Emergency", "This will call Police (100) and share your location. Continue?", [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "CALL NOW",
+        style: "destructive",
+        onPress: async () => {
+          const loc = await getLocation();
+          setLocationText(loc);
+          safeOpenURL("tel:100", "the dialer");
         },
-      ]
-    );
+      },
+    ]);
   };
 
   const handleSaveContact = () => {
@@ -177,9 +170,7 @@ export default function EmergencyScreen() {
           </View>
           <View style={styles.sosTextWrap}>
             <Text style={styles.sosTitle}>SOS Emergency</Text>
-            <Text style={styles.sosDesc}>
-              Tap to call Police (100) with auto-location
-            </Text>
+            <Text style={styles.sosDesc}>Tap to call Police (100) with auto-location</Text>
           </View>
         </Pressable>
 
@@ -191,16 +182,12 @@ export default function EmergencyScreen() {
             ]}
           >
             <Feather name="map-pin" size={14} color={colors.warn} />
-            <Text style={[styles.locationText, { color: colors.warn }]}>
-              📍 {locationText}
-            </Text>
+            <Text style={[styles.locationText, { color: colors.warn }]}>📍 {locationText}</Text>
           </View>
         )}
 
         {/* Emergency Helplines */}
-        <Text style={[styles.sectionTitle, { color: colors.navy }]}>
-          Emergency Helplines
-        </Text>
+        <Text style={[styles.sectionTitle, { color: colors.navy }]}>Emergency Helplines</Text>
 
         {emergencyServices.map((service) => (
           <EmergencyButton
@@ -284,64 +271,62 @@ export default function EmergencyScreen() {
           </View>
         )}
 
-        {customContacts.length > 0 ? (
-          customContacts.map((contact) => (
-            <View
-              key={contact.id}
-              style={[
-                styles.contactCard,
-                {
-                  backgroundColor: colors.card,
-                  borderColor: colors.border,
-                  borderRadius: colors.radius,
-                },
-              ]}
-            >
-              <View style={[styles.contactIcon, { backgroundColor: colors.navy + "18" }]}>
-                <Feather name="user" size={20} color={colors.navy} />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={[styles.contactName, { color: colors.foreground }]}>
-                  {contact.name}
-                </Text>
-                <Text style={[styles.contactPhone, { color: colors.mutedForeground }]}>
-                  {contact.phone}
-                </Text>
-              </View>
-              <Pressable
-                onPress={() => handleEmergencyCall(contact.phone, contact.name)}
-                style={[styles.callBtn, { backgroundColor: colors.success }]}
+        {customContacts.length > 0
+          ? customContacts.map((contact) => (
+              <View
+                key={contact.id}
+                style={[
+                  styles.contactCard,
+                  {
+                    backgroundColor: colors.card,
+                    borderColor: colors.border,
+                    borderRadius: colors.radius,
+                  },
+                ]}
               >
-                <Feather name="phone" size={16} color="#fff" />
-              </Pressable>
+                <View style={[styles.contactIcon, { backgroundColor: colors.navy + "18" }]}>
+                  <Feather name="user" size={20} color={colors.navy} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.contactName, { color: colors.foreground }]}>
+                    {contact.name}
+                  </Text>
+                  <Text style={[styles.contactPhone, { color: colors.mutedForeground }]}>
+                    {contact.phone}
+                  </Text>
+                </View>
+                <Pressable
+                  onPress={() => handleEmergencyCall(contact.phone, contact.name)}
+                  style={[styles.callBtn, { backgroundColor: colors.success }]}
+                >
+                  <Feather name="phone" size={16} color="#fff" />
+                </Pressable>
+                <Pressable
+                  onPress={() => handleRemoveContact(contact.id, contact.name)}
+                  style={[styles.callBtn, { backgroundColor: colors.destructive }]}
+                >
+                  <Feather name="trash-2" size={16} color="#fff" />
+                </Pressable>
+              </View>
+            ))
+          : !showAddForm && (
               <Pressable
-                onPress={() => handleRemoveContact(contact.id, contact.name)}
-                style={[styles.callBtn, { backgroundColor: colors.destructive }]}
+                onPress={() => setShowAddForm(true)}
+                style={[
+                  styles.emptyContactsCard,
+                  {
+                    backgroundColor: colors.secondary,
+                    borderColor: colors.border,
+                    borderRadius: colors.radius,
+                  },
+                ]}
               >
-                <Feather name="trash-2" size={16} color="#fff" />
+                <Feather name="user-plus" size={24} color={colors.mutedForeground} />
+                <Text style={[styles.emptyContactsText, { color: colors.mutedForeground }]}>
+                  Add trusted contacts to call in an emergency
+                </Text>
               </Pressable>
-            </View>
-          ))
-        ) : (
-          !showAddForm && (
-            <Pressable
-              onPress={() => setShowAddForm(true)}
-              style={[
-                styles.emptyContactsCard,
-                {
-                  backgroundColor: colors.secondary,
-                  borderColor: colors.border,
-                  borderRadius: colors.radius,
-                },
-              ]}
-            >
-              <Feather name="user-plus" size={24} color={colors.mutedForeground} />
-              <Text style={[styles.emptyContactsText, { color: colors.mutedForeground }]}>
-                Add trusted contacts to call in an emergency
-              </Text>
-            </Pressable>
-          )
-        )}
+            )}
 
         {/* Info Card */}
         <View
@@ -356,8 +341,8 @@ export default function EmergencyScreen() {
         >
           <Feather name="info" size={16} color={colors.primary} />
           <Text style={[styles.infoText, { color: colors.mutedForeground }]}>
-            All emergency numbers are toll-free and available 24/7 across India.
-            Your location is shared only when you make an emergency call.
+            All emergency numbers are toll-free and available 24/7 across India. Your location is
+            shared only when you make an emergency call.
           </Text>
         </View>
       </ScrollView>

@@ -1,0 +1,115 @@
+name: EAS Build - Android APK
+
+on:
+  workflow_dispatch:
+    inputs:
+      profile:
+        description: "EAS build profile to use"
+        required: true
+        default: "production-apk"
+        type: choice
+        options:
+          - preview
+          - production-apk
+  push:
+    branches:
+      - main
+    tags:
+      - "v*"
+    paths:
+      - "app/**"
+      - "components/**"
+      - "constants/**"
+      - "context/**"
+      - "data/**"
+      - "hooks/**"
+      - "utils/**"
+      - "assets/**"
+      - "package.json"
+      - "package-lock.json"
+      - "app.json"
+      - "eas.json"
+
+jobs:
+  android-apk:
+    name: Build Android APK (non-Play Store)
+    if: github.ref_type != 'tag'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Setup EAS CLI
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build Android APK
+        run: eas build --platform android --profile ${{ github.event.inputs.profile || 'production-apk' }} --non-interactive --no-wait
+
+  release-apk:
+    name: Build & attach APK to GitHub Release
+    if: github.ref_type == 'tag'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Setup EAS CLI
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build Android APK (wait for completion)
+        id: build
+        run: |
+          BUILD_JSON=$(eas build --platform android --profile production-apk --non-interactive --json --wait)
+          echo "$BUILD_JSON"
+          APK_URL=$(echo "$BUILD_JSON" | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{const a=JSON.parse(s);console.log(a[0].artifacts.buildUrl)})")
+          echo "apk_url=$APK_URL" >> "$GITHUB_OUTPUT"
+
+      - name: Download APK artifact
+        run: curl -L -o nyaya-sahayak-${{ github.ref_name }}.apk "${{ steps.build.outputs.apk_url }}"
+
+      - name: Extract changelog section for ${{ github.ref_name }}
+        id: changelog
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          node -e "
+            const fs = require('fs');
+            const md = fs.readFileSync('CHANGELOG.md', 'utf8');
+            const re = new RegExp('## \\\\[' + '${VERSION}'.replace(/\\./g,'\\\\.') + '\\\\][^\\n]*\\n([\\\\s\\\\S]*?)(?=\\n## \\\\[|$)');
+            const m = md.match(re);
+            fs.writeFileSync('RELEASE_NOTES.md', (m ? m[1] : '_See CHANGELOG.md for details._').trim() + '\n');
+          "
+          cat RELEASE_NOTES.md
+
+      - name: Create or update GitHub Release with APK
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: ${{ github.ref_name }}
+          body_path: RELEASE_NOTES.md
+          files: nyaya-sahayak-${{ github.ref_name }}.apk

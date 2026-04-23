@@ -22,15 +22,8 @@ import { useColors } from "@/hooks/useColors";
 import { useFontSizes } from "@/hooks/useFontSizes";
 import { useTranslation } from "@/hooks/useTranslation";
 import { useAppSettings } from "@/context/AppSettingsContext";
-import {
-  officeTypes,
-  detectRegionFromCoords,
-  type Office,
-} from "@/data/offices";
-import {
-  loadCachedOffices,
-  getOfficesForRegion,
-} from "@/utils/regionalOfficesCache";
+import { officeTypes, detectRegionFromCoords, type Office } from "@/data/offices";
+import { loadCachedOffices, getOfficesForRegion } from "@/utils/regionalOfficesCache";
 import {
   estimateTileCount,
   estimateTileCountForRegions,
@@ -60,13 +53,13 @@ async function ensureEnoughStorage(tileCount: number): Promise<boolean> {
     Alert.alert(
       "Low storage",
       `This download needs about ${formatMb(needed)}, but only ${formatMb(
-        free
+        free,
       )} is free on your device. Free up space to avoid a partial download.`,
       [
         { text: "Cancel", style: "cancel", onPress: () => resolve(false) },
         { text: "Continue anyway", onPress: () => resolve(true) },
       ],
-      { cancelable: false }
+      { cancelable: false },
     );
   });
 }
@@ -124,7 +117,7 @@ export default function MapScreen() {
 
   const toggleRegion = useCallback((name: string) => {
     setSelectedRegions((prev) =>
-      prev.includes(name) ? prev.filter((r) => r !== name) : [...prev, name]
+      prev.includes(name) ? prev.filter((r) => r !== name) : [...prev, name],
     );
   }, []);
 
@@ -137,11 +130,7 @@ export default function MapScreen() {
     ? detectRegionFromCoords(userLocation.latitude, userLocation.longitude)
     : "All";
   const region =
-    settingsRegion !== "All"
-      ? settingsRegion
-      : detectedRegion !== "All"
-        ? detectedRegion
-        : "All";
+    settingsRegion !== "All" ? settingsRegion : detectedRegion !== "All" ? detectedRegion : "All";
 
   useEffect(() => {
     (async () => {
@@ -168,7 +157,7 @@ export default function MapScreen() {
             });
           },
           () => {},
-          { timeout: 5000, maximumAge: 60000 }
+          { timeout: 5000, maximumAge: 60000 },
         );
       }
     } else {
@@ -203,11 +192,7 @@ export default function MapScreen() {
       setRegionCoverage(null);
       return;
     }
-    const cov = await getRegionOfflineCoverage(
-      region,
-      STD_MIN_ZOOM,
-      STD_MAX_ZOOM
-    );
+    const cov = await getRegionOfflineCoverage(region, STD_MIN_ZOOM, STD_MAX_ZOOM);
     setRegionCoverage(cov.ratio);
   }, [region]);
 
@@ -245,21 +230,18 @@ export default function MapScreen() {
           (downloaded, total, failed) => {
             setDownloadProgress({ downloaded, total, failed });
           },
-          cancelRef.current
+          cancelRef.current,
         );
         await refreshCacheStats();
         setDownloadProgress(null);
         setIsDownloading(false);
-        Alert.alert(
-          "Download Complete",
-          "Offline map tiles have been saved to your device."
-        );
+        Alert.alert("Download Complete", "Offline map tiles have been saved to your device.");
       } catch {
         setIsDownloading(false);
         setDownloadProgress(null);
       }
     },
-    [isDownloading, refreshCacheStats]
+    [isDownloading, refreshCacheStats],
   );
 
   const handleQuickRefresh = useCallback(async () => {
@@ -278,7 +260,7 @@ export default function MapScreen() {
           setDownloadProgress({ downloaded, total, failed });
         },
         cancelRef.current,
-        region
+        region,
       );
       await refreshCacheStats();
     } catch {}
@@ -337,18 +319,14 @@ export default function MapScreen() {
       [
         { text: "Later", style: "cancel" },
         { text: "Refresh now", onPress: () => handleQuickRefresh() },
-      ]
+      ],
     );
   }, [lastDownloadedAt, isDownloading, handleQuickRefresh]);
 
   const handleDownloadRegions = useCallback(async () => {
     if (isDownloading || Platform.OS === "web") return;
     if (selectedRegions.length === 0) return;
-    const tileCount = estimateTileCountForRegions(
-      STD_MIN_ZOOM,
-      STD_MAX_ZOOM,
-      selectedRegions
-    );
+    const tileCount = estimateTileCountForRegions(STD_MIN_ZOOM, STD_MAX_ZOOM, selectedRegions);
     const ok = await ensureEnoughStorage(tileCount);
     if (!ok) return;
     cancelRef.current = { cancelled: false };
@@ -362,7 +340,7 @@ export default function MapScreen() {
         (downloaded, total, failed) => {
           setDownloadProgress({ downloaded, total, failed });
         },
-        cancelRef.current
+        cancelRef.current,
       );
       await refreshCacheStats();
     } catch {}
@@ -371,25 +349,21 @@ export default function MapScreen() {
   }, [isDownloading, selectedRegions, refreshCacheStats]);
 
   const handleClearCache = useCallback(async () => {
-    Alert.alert(
-      "Clear Map Cache",
-      "This will delete all downloaded map tiles. Are you sure?",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Clear",
-          style: "destructive",
-          onPress: async () => {
-            await clearTileCache();
-            await refreshCacheStats();
-          },
+    Alert.alert("Clear Map Cache", "This will delete all downloaded map tiles. Are you sure?", [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Clear",
+        style: "destructive",
+        onPress: async () => {
+          await clearTileCache();
+          await refreshCacheStats();
         },
-      ]
-    );
+      },
+    ]);
   }, [refreshCacheStats]);
 
   const displayOffices = regionalOffices.filter(
-    (o) => selectedType === "all" || o.type === selectedType
+    (o) => selectedType === "all" || o.type === selectedType,
   );
 
   const regionLabel =
@@ -425,20 +399,14 @@ export default function MapScreen() {
       >
         <View style={styles.headerRow}>
           <View style={{ flex: 1 }}>
-            <Text style={[styles.headerTitle, { fontSize: fs.xl }]}>
-              {t.whereToGo}
-            </Text>
+            <Text style={[styles.headerTitle, { fontSize: fs.xl }]}>{t.whereToGo}</Text>
             <View style={styles.regionRow}>
-              <Feather
-                name="map-pin"
-                size={11}
-                color="rgba(255,255,255,0.5)"
-              />
-              <Text style={[styles.regionLabel, { fontSize: fs.xs }]}>
-                {regionLabel}
-              </Text>
+              <Feather name="map-pin" size={11} color="rgba(255,255,255,0.5)" />
+              <Text style={[styles.regionLabel, { fontSize: fs.xs }]}>{regionLabel}</Text>
             </View>
-            {Platform.OS !== "web" && region !== "All" && regionCoverage !== null && (
+            {Platform.OS !== "web" &&
+              region !== "All" &&
+              regionCoverage !== null &&
               (() => {
                 const ratio = regionCoverage;
                 let bg = "rgba(255,255,255,0.10)";
@@ -481,8 +449,7 @@ export default function MapScreen() {
                     <Text style={styles.updatedBadgeText}>{label}</Text>
                   </Pressable>
                 );
-              })()
-            )}
+              })()}
             {Platform.OS !== "web" && lastDownloadedAt && (
               <Pressable
                 onPress={handleQuickRefresh}
@@ -494,26 +461,15 @@ export default function MapScreen() {
                 ]}
               >
                 {isDownloading ? (
-                  <ActivityIndicator
-                    size="small"
-                    color="rgba(255,255,255,0.85)"
-                  />
+                  <ActivityIndicator size="small" color="rgba(255,255,255,0.85)" />
                 ) : (
-                  <Feather
-                    name="refresh-cw"
-                    size={10}
-                    color="rgba(255,255,255,0.7)"
-                  />
+                  <Feather name="refresh-cw" size={10} color="rgba(255,255,255,0.7)" />
                 )}
                 <Text style={styles.updatedBadgeText}>
                   {isDownloading
                     ? `Updating ${
                         downloadProgress && downloadProgress.total > 0
-                          ? Math.round(
-                              (downloadProgress.downloaded /
-                                downloadProgress.total) *
-                                100
-                            )
+                          ? Math.round((downloadProgress.downloaded / downloadProgress.total) * 100)
                           : 0
                       }%`
                     : `Map updated ${formatRelativeTime(lastDownloadedAt)}`}
@@ -524,10 +480,7 @@ export default function MapScreen() {
           <View style={styles.headerActions}>
             <Pressable
               onPress={() => router.push("/settings" as any)}
-              style={[
-                styles.toggleBtn,
-                { backgroundColor: "rgba(255,255,255,0.15)" },
-              ]}
+              style={[styles.toggleBtn, { backgroundColor: "rgba(255,255,255,0.15)" }]}
               accessibilityLabel="Settings"
             >
               <Feather name="settings" size={18} color="#fff" />
@@ -535,20 +488,14 @@ export default function MapScreen() {
             {Platform.OS !== "web" && (
               <Pressable
                 onPress={() => setShowDownloadModal(true)}
-                style={[
-                  styles.toggleBtn,
-                  { backgroundColor: "rgba(255,255,255,0.15)" },
-                ]}
+                style={[styles.toggleBtn, { backgroundColor: "rgba(255,255,255,0.15)" }]}
               >
                 <Feather name="download" size={18} color="#fff" />
               </Pressable>
             )}
             <Pressable
               onPress={() => setShowList(!showList)}
-              style={[
-                styles.toggleBtn,
-                { backgroundColor: "rgba(255,255,255,0.15)" },
-              ]}
+              style={[styles.toggleBtn, { backgroundColor: "rgba(255,255,255,0.15)" }]}
             >
               <Feather name={showList ? "map" : "list"} size={18} color="#fff" />
             </Pressable>
@@ -569,26 +516,21 @@ export default function MapScreen() {
             style={[
               styles.chip,
               {
-                backgroundColor:
-                  selectedType === item.id ? colors.navy : "transparent",
-                borderColor:
-                  selectedType === item.id ? colors.navy : colors.border,
+                backgroundColor: selectedType === item.id ? colors.navy : "transparent",
+                borderColor: selectedType === item.id ? colors.navy : colors.border,
               },
             ]}
           >
             <Feather
               name={item.icon as any}
               size={14}
-              color={
-                selectedType === item.id ? "#fff" : colors.mutedForeground
-              }
+              color={selectedType === item.id ? "#fff" : colors.mutedForeground}
             />
             <Text
               style={[
                 styles.chipText,
                 {
-                  color:
-                    selectedType === item.id ? "#fff" : colors.mutedForeground,
+                  color: selectedType === item.id ? "#fff" : colors.mutedForeground,
                 },
               ]}
             >
@@ -602,19 +544,12 @@ export default function MapScreen() {
         <FlatList
           data={displayOffices}
           keyExtractor={(item) => item.id}
-          contentContainerStyle={[
-            styles.listContent,
-            { paddingBottom: insets.bottom + 100 },
-          ]}
+          contentContainerStyle={[styles.listContent, { paddingBottom: insets.bottom + 100 }]}
           showsVerticalScrollIndicator={false}
           renderItem={({ item }) => <OfficeCard office={item} />}
           ListEmptyComponent={
             <View style={styles.empty}>
-              <Feather
-                name="map-pin"
-                size={48}
-                color={colors.mutedForeground}
-              />
+              <Feather name="map-pin" size={48} color={colors.mutedForeground} />
               <Text
                 style={[
                   styles.emptyText,
@@ -664,14 +599,8 @@ export default function MapScreen() {
             ]}
           >
             <Feather name="map-pin" size={14} color={colors.primary} />
-            <Text
-              style={[
-                styles.officeCountText,
-                { color: colors.foreground, fontSize: fs.sm },
-              ]}
-            >
-              {displayOffices.length}{" "}
-              {settings.language === "Hindi" ? "कार्यालय" : "offices"}
+            <Text style={[styles.officeCountText, { color: colors.foreground, fontSize: fs.sm }]}>
+              {displayOffices.length} {settings.language === "Hindi" ? "कार्यालय" : "offices"}
             </Text>
           </View>
         </View>
@@ -686,21 +615,9 @@ export default function MapScreen() {
           if (!isDownloading) setShowDownloadModal(false);
         }}
       >
-        <View
-          style={[
-            styles.modalContainer,
-            { backgroundColor: colors.background },
-          ]}
-        >
-          <View
-            style={[styles.modalHeader, { borderBottomColor: colors.border }]}
-          >
-            <Text
-              style={[
-                styles.modalTitle,
-                { color: colors.foreground, fontSize: fs.lg },
-              ]}
-            >
+        <View style={[styles.modalContainer, { backgroundColor: colors.background }]}>
+          <View style={[styles.modalHeader, { borderBottomColor: colors.border }]}>
+            <Text style={[styles.modalTitle, { color: colors.foreground, fontSize: fs.lg }]}>
               Offline Map Tiles
             </Text>
             {!isDownloading && (
@@ -724,23 +641,13 @@ export default function MapScreen() {
               <Feather name="database" size={18} color={colors.primary} />
               <View style={{ flex: 1 }}>
                 <Text
-                  style={[
-                    styles.statsLabel,
-                    { color: colors.mutedForeground, fontSize: fs.xs },
-                  ]}
+                  style={[styles.statsLabel, { color: colors.mutedForeground, fontSize: fs.xs }]}
                 >
                   Cached tiles
                 </Text>
-                <Text
-                  style={[
-                    styles.statsValue,
-                    { color: colors.foreground, fontSize: fs.base },
-                  ]}
-                >
+                <Text style={[styles.statsValue, { color: colors.foreground, fontSize: fs.base }]}>
                   {cachedTileCount.toLocaleString()} tiles
-                  {cachedTileCount > 0
-                    ? ` (~${Math.round((cachedTileCount * 25) / 1024)} MB)`
-                    : ""}
+                  {cachedTileCount > 0 ? ` (~${Math.round((cachedTileCount * 25) / 1024)} MB)` : ""}
                 </Text>
               </View>
               {cachedTileCount > 0 && !isDownloading && (
@@ -764,20 +671,12 @@ export default function MapScreen() {
                 <View style={styles.progressHeader}>
                   <ActivityIndicator size="small" color={colors.primary} />
                   <Text
-                    style={[
-                      styles.progressLabel,
-                      { color: colors.foreground, fontSize: fs.sm },
-                    ]}
+                    style={[styles.progressLabel, { color: colors.foreground, fontSize: fs.sm }]}
                   >
                     Downloading… {progressPct}%
                   </Text>
                 </View>
-                <View
-                  style={[
-                    styles.progressBar,
-                    { backgroundColor: colors.border },
-                  ]}
-                >
+                <View style={[styles.progressBar, { backgroundColor: colors.border }]}>
                   <View
                     style={[
                       styles.progressFill,
@@ -797,20 +696,14 @@ export default function MapScreen() {
                     },
                   ]}
                 >
-                  {downloadProgress.downloaded} / {downloadProgress.total}{" "}
-                  tiles
-                  {downloadProgress.failed > 0
-                    ? ` (${downloadProgress.failed} failed)`
-                    : ""}
+                  {downloadProgress.downloaded} / {downloadProgress.total} tiles
+                  {downloadProgress.failed > 0 ? ` (${downloadProgress.failed} failed)` : ""}
                 </Text>
                 <Pressable
                   onPress={() => {
                     cancelRef.current.cancelled = true;
                   }}
-                  style={[
-                    styles.cancelBtn,
-                    { borderColor: colors.border },
-                  ]}
+                  style={[styles.cancelBtn, { borderColor: colors.border }]}
                 >
                   <Text
                     style={[
@@ -828,23 +721,13 @@ export default function MapScreen() {
             {!isDownloading && region !== "All" && (
               <>
                 <Text
-                  style={[
-                    styles.sectionLabel,
-                    { color: colors.mutedForeground, fontSize: fs.xs },
-                  ]}
+                  style={[styles.sectionLabel, { color: colors.mutedForeground, fontSize: fs.xs }]}
                 >
                   YOUR REGION
                 </Text>
                 {(() => {
-                  const myCount = estimateTileCount(
-                    STD_MIN_ZOOM,
-                    STD_MAX_ZOOM,
-                    region
-                  );
-                  const myMb = Math.max(
-                    1,
-                    Math.round((myCount * 25) / 1024)
-                  );
+                  const myCount = estimateTileCount(STD_MIN_ZOOM, STD_MAX_ZOOM, region);
+                  const myMb = Math.max(1, Math.round((myCount * 25) / 1024));
                   return (
                     <Pressable
                       onPress={handleQuickRefresh}
@@ -857,12 +740,7 @@ export default function MapScreen() {
                       ]}
                     >
                       <View style={{ flex: 1 }}>
-                        <Text
-                          style={[
-                            styles.presetLabel,
-                            { color: "#ffffff", fontSize: fs.sm },
-                          ]}
-                        >
+                        <Text style={[styles.presetLabel, { color: "#ffffff", fontSize: fs.sm }]}>
                           Download {region} for offline use
                         </Text>
                         <Text
@@ -899,17 +777,12 @@ export default function MapScreen() {
                   DOWNLOAD INDIA MAP TILES
                 </Text>
                 {DOWNLOAD_PRESETS.map((preset) => {
-                  const count = estimateTileCount(
-                    preset.minZoom,
-                    preset.maxZoom
-                  );
+                  const count = estimateTileCount(preset.minZoom, preset.maxZoom);
                   const sizeMb = Math.round((count * 25) / 1024);
                   return (
                     <Pressable
                       key={preset.label}
-                      onPress={() =>
-                        handleDownload(preset.minZoom, preset.maxZoom)
-                      }
+                      onPress={() => handleDownload(preset.minZoom, preset.maxZoom)}
                       style={[
                         styles.presetBtn,
                         {
@@ -942,11 +815,7 @@ export default function MapScreen() {
                           ~{count} tiles · ~{sizeMb} MB
                         </Text>
                       </View>
-                      <Feather
-                        name="download"
-                        size={18}
-                        color={colors.primary}
-                      />
+                      <Feather name="download" size={18} color={colors.primary} />
                     </Pressable>
                   );
                 })}
@@ -973,12 +842,8 @@ export default function MapScreen() {
                         style={[
                           styles.regionChip,
                           {
-                            backgroundColor: active
-                              ? colors.primary
-                              : colors.card,
-                            borderColor: active
-                              ? colors.primary
-                              : colors.border,
+                            backgroundColor: active ? colors.primary : colors.card,
+                            borderColor: active ? colors.primary : colors.border,
                           },
                         ]}
                       >
@@ -1007,12 +872,7 @@ export default function MapScreen() {
                     ]}
                   >
                     <View style={{ flex: 1 }}>
-                      <Text
-                        style={[
-                          styles.presetLabel,
-                          { color: "#ffffff", fontSize: fs.sm },
-                        ]}
-                      >
+                      <Text style={[styles.presetLabel, { color: "#ffffff", fontSize: fs.sm }]}>
                         Download {selectedRegions.length} state
                         {selectedRegions.length === 1 ? "" : "s"}
                       </Text>
@@ -1029,17 +889,17 @@ export default function MapScreen() {
                         {estimateTileCountForRegions(
                           STD_MIN_ZOOM,
                           STD_MAX_ZOOM,
-                          selectedRegions
+                          selectedRegions,
                         ).toLocaleString()}{" "}
                         tiles · ~
                         {Math.round(
                           (estimateTileCountForRegions(
                             STD_MIN_ZOOM,
                             STD_MAX_ZOOM,
-                            selectedRegions
+                            selectedRegions,
                           ) *
                             25) /
-                            1024
+                            1024,
                         )}{" "}
                         MB
                       </Text>
@@ -1057,9 +917,8 @@ export default function MapScreen() {
                     },
                   ]}
                 >
-                  Tiles are downloaded from OpenStreetMap and stored on your
-                  device for offline use. Higher zoom levels show more detail
-                  but require more storage.
+                  Tiles are downloaded from OpenStreetMap and stored on your device for offline use.
+                  Higher zoom levels show more detail but require more storage.
                 </Text>
               </>
             )}

@@ -33,7 +33,7 @@ const getMapHTML = (
   markerColors: Record<string, string>,
   isNative: boolean,
   offlineTilesAvailable: boolean,
-  inline: LeafletInline
+  inline: LeafletInline,
 ) => {
   const officesJSON = JSON.stringify(
     offices.map((o) => ({
@@ -44,7 +44,7 @@ const getMapHTML = (
       phone: o.phone ?? "",
       lat: o.latitude,
       lng: o.longitude,
-    }))
+    })),
   );
   const userLocJSON = userLocation
     ? JSON.stringify({ lat: userLocation.latitude, lng: userLocation.longitude })
@@ -395,47 +395,50 @@ export function LeafletMap({
     };
   }, []);
 
-  const handleMessage = useCallback(async (event: WebViewMessageEvent) => {
-    try {
-      const data = JSON.parse(event.nativeEvent.data);
+  const handleMessage = useCallback(
+    async (event: WebViewMessageEvent) => {
+      try {
+        const data = JSON.parse(event.nativeEvent.data);
 
-      if (data.type === "getTile") {
-        const { z, x, y } = data;
-        const key = `${z}/${x}/${y}`;
+        if (data.type === "getTile") {
+          const { z, x, y } = data;
+          const key = `${z}/${x}/${y}`;
 
-        let dataUri = await getCachedTileBase64(z, x, y);
-        if (!dataUri) {
-          dataUri = await fetchAndCacheTile(z, x, y);
-        }
+          let dataUri = await getCachedTileBase64(z, x, y);
+          if (!dataUri) {
+            dataUri = await fetchAndCacheTile(z, x, y);
+          }
 
-        if (dataUri && webviewRef.current) {
-          webviewRef.current.injectJavaScript(
-            `window.receiveTile(${JSON.stringify(key)}, ${JSON.stringify(dataUri)}); void 0;`
-          );
+          if (dataUri && webviewRef.current) {
+            webviewRef.current.injectJavaScript(
+              `window.receiveTile(${JSON.stringify(key)}, ${JSON.stringify(dataUri)}); void 0;`,
+            );
+          }
+        } else if (data.type === "call" && data.phone) {
+          const num = String(data.phone).replace(/[^+\d]/g, "");
+          if (num) Linking.openURL(`tel:${num}`).catch(() => {});
+        } else if (data.type === "directions") {
+          const lat = Number(data.lat);
+          const lng = Number(data.lng);
+          if (Number.isFinite(lat) && Number.isFinite(lng)) {
+            const label = encodeURIComponent(String(data.name ?? "Destination"));
+            const url =
+              Platform.OS === "ios"
+                ? `maps:0,0?q=${label}@${lat},${lng}`
+                : `geo:${lat},${lng}?q=${lat},${lng}(${label})`;
+            Linking.openURL(url).catch(() => {
+              Linking.openURL(
+                `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`,
+              ).catch(() => {});
+            });
+          }
+        } else if (data.type === "mapError") {
+          onFallback?.();
         }
-      } else if (data.type === "call" && data.phone) {
-        const num = String(data.phone).replace(/[^+\d]/g, "");
-        if (num) Linking.openURL(`tel:${num}`).catch(() => {});
-      } else if (data.type === "directions") {
-        const lat = Number(data.lat);
-        const lng = Number(data.lng);
-        if (Number.isFinite(lat) && Number.isFinite(lng)) {
-          const label = encodeURIComponent(String(data.name ?? "Destination"));
-          const url =
-            Platform.OS === "ios"
-              ? `maps:0,0?q=${label}@${lat},${lng}`
-              : `geo:${lat},${lng}?q=${lat},${lng}(${label})`;
-          Linking.openURL(url).catch(() => {
-            Linking.openURL(
-              `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`
-            ).catch(() => {});
-          });
-        }
-      } else if (data.type === "mapError") {
-        onFallback?.();
-      }
-    } catch {}
-  }, [onFallback]);
+      } catch {}
+    },
+    [onFallback],
+  );
 
   const html = getMapHTML(
     offices,
@@ -443,17 +446,13 @@ export function LeafletMap({
     markerColors,
     Platform.OS !== "web",
     offlineTilesAvailable,
-    inline
+    inline,
   );
 
   if (Platform.OS === "web") {
     return (
       <View style={styles.container}>
-        <iframe
-          srcDoc={html}
-          style={WEB_IFRAME_STYLE}
-          title="Map"
-        />
+        <iframe srcDoc={html} style={WEB_IFRAME_STYLE} title="Map" />
       </View>
     );
   }

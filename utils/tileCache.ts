@@ -1,5 +1,5 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import * as FileSystem from "expo-file-system";
+import * as FileSystem from "expo-file-system/legacy";
 import { Platform } from "react-native";
 
 import { STATE_BBOX } from "@/data/offices";
@@ -70,8 +70,7 @@ function lngToTileX(lng: number, zoom: number): number {
 function latToTileY(lat: number, zoom: number): number {
   const rad = (lat * Math.PI) / 180;
   return Math.floor(
-    ((1 - Math.log(Math.tan(rad) + 1 / Math.cos(rad)) / Math.PI) / 2) *
-      Math.pow(2, zoom)
+    ((1 - Math.log(Math.tan(rad) + 1 / Math.cos(rad)) / Math.PI) / 2) * Math.pow(2, zoom),
   );
 }
 
@@ -102,7 +101,7 @@ export const REGION_BBOX: Record<string, BBox> = Object.fromEntries(
   Object.entries(STATE_BBOX).map(([state, b]) => [
     state,
     { latMin: b.minLat, latMax: b.maxLat, lngMin: b.minLng, lngMax: b.maxLng },
-  ])
+  ]),
 );
 
 export function getRegionBBox(region?: string | null): BBox {
@@ -127,7 +126,7 @@ function getTilesForBBox(bbox: BBox, zoom: number): TileCoord[] {
 export function estimateTileCount(
   minZoom: number,
   maxZoom: number,
-  region?: string | null
+  region?: string | null,
 ): number {
   const bbox = getRegionBBox(region);
   let count = 0;
@@ -137,11 +136,7 @@ export function estimateTileCount(
   return count;
 }
 
-function tilesForRegions(
-  minZoom: number,
-  maxZoom: number,
-  regions: string[]
-): TileCoord[] {
+function tilesForRegions(minZoom: number, maxZoom: number, regions: string[]): TileCoord[] {
   const seen = new Set<string>();
   const out: TileCoord[] = [];
   const list = regions.length > 0 ? regions : [""];
@@ -162,7 +157,7 @@ function tilesForRegions(
 export function estimateTileCountForRegions(
   minZoom: number,
   maxZoom: number,
-  regions: string[]
+  regions: string[],
 ): number {
   return tilesForRegions(minZoom, maxZoom, regions).length;
 }
@@ -175,11 +170,7 @@ function tilePath(z: number, x: number, y: number): string {
   return `${TILE_BASE_PATH}${z}/${x}/${y}.png`;
 }
 
-export async function isTileCached(
-  z: number,
-  x: number,
-  y: number
-): Promise<boolean> {
+export async function isTileCached(z: number, x: number, y: number): Promise<boolean> {
   if (Platform.OS === "web") return false;
   try {
     const info = await FileSystem.getInfoAsync(tilePath(z, x, y));
@@ -189,11 +180,7 @@ export async function isTileCached(
   }
 }
 
-export async function getCachedTileBase64(
-  z: number,
-  x: number,
-  y: number
-): Promise<string | null> {
+export async function getCachedTileBase64(z: number, x: number, y: number): Promise<string | null> {
   if (Platform.OS === "web") return null;
   try {
     const path = tilePath(z, x, y);
@@ -208,11 +195,7 @@ export async function getCachedTileBase64(
   }
 }
 
-export async function fetchAndCacheTile(
-  z: number,
-  x: number,
-  y: number
-): Promise<string | null> {
+export async function fetchAndCacheTile(z: number, x: number, y: number): Promise<string | null> {
   if (Platform.OS === "web") return null;
   try {
     const dir = `${TILE_BASE_PATH}${z}/${x}/`;
@@ -239,7 +222,7 @@ export async function downloadOfflineTiles(
   maxZoom: number,
   onProgress: (downloaded: number, total: number, failed: number) => void,
   signal?: { cancelled: boolean },
-  region?: string | null
+  region?: string | null,
 ): Promise<{ downloaded: number; failed: number; total: number }> {
   if (Platform.OS === "web") return { downloaded: 0, failed: 0, total: 0 };
 
@@ -279,7 +262,7 @@ export async function downloadOfflineTilesForRegions(
   maxZoom: number,
   regions: string[],
   onProgress: (downloaded: number, total: number, failed: number) => void,
-  signal?: { cancelled: boolean }
+  signal?: { cancelled: boolean },
 ): Promise<{ downloaded: number; failed: number; total: number }> {
   if (Platform.OS === "web") return { downloaded: 0, failed: 0, total: 0 };
 
@@ -304,11 +287,7 @@ export async function downloadOfflineTilesForRegions(
 
   if (!signal?.cancelled && downloaded > 0) {
     const label =
-      regions.length === 0
-        ? null
-        : regions.length === 1
-        ? regions[0]
-        : `${regions.length} regions`;
+      regions.length === 0 ? null : regions.length === 1 ? regions[0] : `${regions.length} regions`;
     await setLastDownloadedAt(label);
   }
 
@@ -327,7 +306,7 @@ export async function getRegionOfflineCoverage(
   region: string | null | undefined,
   minZoom: number,
   maxZoom: number,
-  maxSamples = 120
+  maxSamples = 120,
 ): Promise<RegionCoverage> {
   if (Platform.OS === "web") return { cached: 0, sampled: 0, ratio: 0 };
   const bbox = getRegionBBox(region);
@@ -362,9 +341,7 @@ export async function getCachedTileCount(): Promise<number> {
         const xDirs = await FileSystem.readDirectoryAsync(`${TILE_BASE_PATH}${z}/`);
         for (const x of xDirs) {
           try {
-            const files = await FileSystem.readDirectoryAsync(
-              `${TILE_BASE_PATH}${z}/${x}/`
-            );
+            const files = await FileSystem.readDirectoryAsync(`${TILE_BASE_PATH}${z}/${x}/`);
             count += files.filter((f) => f.endsWith(".png")).length;
           } catch {}
         }

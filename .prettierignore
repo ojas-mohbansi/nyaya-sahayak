@@ -1,0 +1,12 @@
+node_modules
+.expo
+dist
+web-build
+android
+ios
+.local
+.cache
+.agents
+.github
+package-lock.json
+*.md

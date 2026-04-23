@@ -5,7 +5,6 @@ import { router } from "expo-router";
 import React, { useState } from "react";
 import {
   Alert,
-  Linking,
   Modal,
   Platform,
   Pressable,
@@ -48,7 +47,7 @@ const REGIONS = [
 ];
 
 const allRightsTips: string[] = rightsCategories.flatMap((cat) =>
-  cat.items.map((item) => `${item.title}: ${item.summary}`)
+  cat.items.map((item) => `${item.title}: ${item.summary}`),
 );
 
 async function scheduleDaily() {
@@ -121,7 +120,7 @@ export default function SettingsScreen() {
           isHindi ? "समर्थित नहीं" : "Not Supported",
           isHindi
             ? "वेब पर पुश नोटिफिकेशन समर्थित नहीं हैं।"
-            : "Push notifications are not supported on web."
+            : "Push notifications are not supported on web.",
         );
         return;
       }
@@ -131,7 +130,7 @@ export default function SettingsScreen() {
           isHindi ? "अनुमति आवश्यक है" : "Permission Required",
           isHindi
             ? "दैनिक कानूनी टिप प्राप्त करने के लिए कृपया अपने डिवाइस सेटिंग्स में नोटिफिकेशन की अनुमति दें।"
-            : "Please allow notifications in your device settings to receive daily legal tips."
+            : "Please allow notifications in your device settings to receive daily legal tips.",
         );
         return;
       }
@@ -141,7 +140,7 @@ export default function SettingsScreen() {
         isHindi ? "नोटिफिकेशन चालू" : "Notifications Enabled",
         isHindi
           ? "आपको हर दिन सुबह 9:00 बजे दैनिक कानूनी टिप मिलेगी।"
-          : "You'll receive a daily legal tip at 9:00 AM."
+          : "You'll receive a daily legal tip at 9:00 AM.",
       );
     } else {
       await cancelDaily();
@@ -159,19 +158,16 @@ export default function SettingsScreen() {
     settings.region && settings.region !== "All"
       ? settings.region
       : isEnglish
-      ? "All regions"
-      : isHindi
-      ? "सभी क्षेत्र"
-      : t.allOffices;
+        ? "All regions"
+        : isHindi
+          ? "सभी क्षेत्र"
+          : t.allOffices;
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <LinearGradient
         colors={[colors.navy, "#1a2a3a"]}
-        style={[
-          styles.header,
-          { paddingTop: (Platform.OS === "web" ? 67 : insets.top) + 12 },
-        ]}
+        style={[styles.header, { paddingTop: (Platform.OS === "web" ? 67 : insets.top) + 12 }]}
       >
         <Pressable onPress={() => router.back()} style={styles.backBtn} hitSlop={12}>
           <Feather name="arrow-left" size={22} color="#fff" />
@@ -253,8 +249,7 @@ export default function SettingsScreen() {
                   style={[
                     styles.segment,
                     {
-                      backgroundColor:
-                        settings.textSize === key ? colors.navy : "transparent",
+                      backgroundColor: settings.textSize === key ? colors.navy : "transparent",
                       borderColor: colors.border,
                     },
                   ]}
@@ -263,8 +258,7 @@ export default function SettingsScreen() {
                     style={[
                       styles.segmentText,
                       {
-                        color:
-                          settings.textSize === key ? "#fff" : colors.mutedForeground,
+                        color: settings.textSize === key ? "#fff" : colors.mutedForeground,
                         fontSize: fs.xs,
                       },
                     ]}
@@ -399,7 +393,10 @@ export default function SettingsScreen() {
         >
           <Pressable
             onPress={() => setRegionModalVisible(true)}
-            style={({ pressed }) => [styles.row, { paddingVertical: 14, opacity: pressed ? 0.7 : 1 }]}
+            style={({ pressed }) => [
+              styles.row,
+              { paddingVertical: 14, opacity: pressed ? 0.7 : 1 },
+            ]}
           >
             <View style={styles.rowLeft}>
               <Feather name="map-pin" size={18} color={colors.navy} />
@@ -533,10 +530,7 @@ export default function SettingsScreen() {
         animationType="slide"
         onRequestClose={() => setRegionModalVisible(false)}
       >
-        <Pressable
-          style={styles.modalOverlay}
-          onPress={() => setRegionModalVisible(false)}
-        >
+        <Pressable style={styles.modalOverlay} onPress={() => setRegionModalVisible(false)}>
           <Pressable
             style={[
               styles.modalSheet,
@@ -558,10 +552,7 @@ export default function SettingsScreen() {
                   <React.Fragment key={r}>
                     <Pressable
                       onPress={() => handleRegionSelect(r)}
-                      style={({ pressed }) => [
-                        styles.regionRow,
-                        { opacity: pressed ? 0.7 : 1 },
-                      ]}
+                      style={({ pressed }) => [styles.regionRow, { opacity: pressed ? 0.7 : 1 }]}
                     >
                       <Text
                         style={[
@@ -577,8 +568,8 @@ export default function SettingsScreen() {
                           ? isEnglish
                             ? "All regions"
                             : isHindi
-                            ? "सभी क्षेत्र"
-                            : t.allOffices
+                              ? "सभी क्षेत्र"
+                              : t.allOffices
                           : r}
                       </Text>
                       {active && <Feather name="check" size={17} color={colors.success} />}

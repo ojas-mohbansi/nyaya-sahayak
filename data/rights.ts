@@ -32,7 +32,8 @@ export const rightsCategories: RightsCategory[] = [
       {
         id: "cr_002",
         title: "Right Against Caste Discrimination",
-        summary: "Article 15 prohibits discrimination on grounds of religion, race, caste, sex or place of birth",
+        summary:
+          "Article 15 prohibits discrimination on grounds of religion, race, caste, sex or place of birth",
         content:
           "Article 15 prohibits the State from discriminating against any citizen on grounds of religion, race, caste, sex, or place of birth.\n\nKey provisions:\n- No restriction on access to shops, hotels, public entertainment\n- No restriction on the use of wells, tanks, bathing ghats, roads, and places of public resort maintained out of State funds\n- Special provisions can be made for women and children\n- Special provisions can be made for socially and educationally backward classes or SC/ST\n\nWho can invoke this right:\n- Any citizen of India can approach the court if discriminated against on these grounds\n- File a complaint with the National Commission for Scheduled Castes or the National Human Rights Commission",
         reference: "Article 15, Constitution of India",
@@ -267,7 +268,8 @@ export const rightsCategories: RightsCategory[] = [
         summary: "Every worker has the right to a safe workplace",
         content:
           "The Occupational Safety, Health and Working Conditions Code, 2020 and factory laws protect workers:\n\nYour Rights at Work:\n- Safe and healthy working environment\n- Protection from hazardous chemicals, machinery, and substances\n- Maximum 8-hour working day (48 hours per week)\n- Minimum 30-minute break for every 5 hours of work\n- Overtime paid at twice the ordinary wage rate\n- Annual leave: 1 day for every 20 days of work\n\nEmployer Obligations:\n- Maintain first aid facilities\n- Provide drinking water, washrooms, canteen (for 100+ workers)\n- Display health and safety notices in local language\n- Report accidents causing death or serious injury to the government\n\nIf Rights Are Violated:\n1. Complain to the factory inspector or labour officer\n2. Contact State Labour Department\n3. File complaint under relevant factory or workplace safety law",
-        reference: "Factories Act, 1948; Occupational Safety, Health and Working Conditions Code, 2020",
+        reference:
+          "Factories Act, 1948; Occupational Safety, Health and Working Conditions Code, 2020",
       },
     ],
   },
@@ -480,7 +482,8 @@ export const rightsCategories: RightsCategory[] = [
       {
         id: "disability-employment",
         title: "Employment Rights for Disabled Persons",
-        summary: "Reservation, reasonable accommodation, and protection against discrimination at work",
+        summary:
+          "Reservation, reasonable accommodation, and protection against discrimination at work",
         content:
           "The RPWD Act, 2016 guarantees strong employment protections:\n\nReservation in Government Jobs:\n- 4% of all government vacancies reserved for persons with benchmark disabilities\n- 1% for Blindness and low vision, 1% for Deaf and hard of hearing, 1% for locomotor disability, 1% for autism/intellectual disability/mental illness/multiple disabilities\n\nReasonable Accommodation:\n- Every employer must provide 'reasonable accommodation' to employees with disabilities\n- Includes modified workstations, extra time for tests, accessible premises\n- Refusal to provide reasonable accommodation = discrimination\n\nProtection Against Discrimination:\n- No employer can discriminate solely on ground of disability\n- Special Recruitment Drive by central government periodically\n- Penalty for employer not complying: Rs. 10,000 to Rs. 5,00,000 fine\n\nCEO / HR Designated Officer:\n- Every establishment must designate a Grievance Redressal Officer\n\nHow to Complain:\n1. File complaint with State Commissioner for Persons with Disabilities\n2. Approach Chief Commissioner for Persons with Disabilities at national level\n3. File a court case for discrimination\n\nHelpline: 1800-11-4515 (free)",
         reference: "Rights of Persons with Disabilities Act, 2016, Sections 20-24",
@@ -523,7 +526,8 @@ export const rightsCategories: RightsCategory[] = [
         summary: "Citizens have a right to free emergency medical care at all hospitals",
         content:
           "The Supreme Court has interpreted the Right to Life (Article 21) to include the Right to Health:\n\nEmergency Medical Treatment:\n- No hospital (government or private) can deny emergency treatment due to lack of money\n- Supreme Court ruling: Refusing emergency treatment is a violation of Article 21\n- Government hospitals must provide free emergency care to all\n- Private hospitals empanelled under Ayushman Bharat must treat cardholders for free\n\nAyushman Bharat (PM-JAY):\n- Health cover of Rs. 5 lakh per family per year for secondary and tertiary care\n- Covers 1,929+ medical procedures\n- Target: 10.74 crore poor and vulnerable families\n- Cashless and paperless treatment at empanelled hospitals\n\nJanani Suraksha Yojana:\n- Free delivery and post-natal care for pregnant women in government hospitals\n- Financial assistance for institutional delivery\n\nNational Health Mission:\n- Free medicines, diagnostics, and treatment at government health facilities\n- Jan Aushadhi stores — generic medicines at very low cost\n\nIf Denied Emergency Care:\n1. Report to the hospital superintendent immediately\n2. Call 108 (emergency ambulance)\n3. File a complaint with the State Medical Council\n4. Approach the Consumer Forum for medical negligence",
-        reference: "Article 21, Constitution; Paschim Banga Khet Samity v. State of West Bengal, 1996",
+        reference:
+          "Article 21, Constitution; Paschim Banga Khet Samity v. State of West Bengal, 1996",
       },
       {
         id: "social-security",

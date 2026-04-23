@@ -5,10 +5,7 @@ import { Alert, Linking, Platform } from "react-native";
  * handle the scheme (e.g. a tablet with no dialer for `tel:`, or a kiosk
  * device with no browser). Surfaces a friendly alert instead of throwing.
  */
-export async function safeOpenURL(
-  url: string,
-  friendlyLabel?: string
-): Promise<boolean> {
+export async function safeOpenURL(url: string, friendlyLabel?: string): Promise<boolean> {
   try {
     if (Platform.OS !== "web") {
       const supported = await Linking.canOpenURL(url);
@@ -17,7 +14,7 @@ export async function safeOpenURL(
           "Can't open this link",
           friendlyLabel
             ? `No app on this device can open ${friendlyLabel}.`
-            : "No app on this device can open this link."
+            : "No app on this device can open this link.",
         );
         return false;
       }
@@ -29,7 +26,7 @@ export async function safeOpenURL(
       "Couldn't open link",
       friendlyLabel
         ? `Something went wrong opening ${friendlyLabel}. Please try again.`
-        : "Something went wrong. Please try again."
+        : "Something went wrong. Please try again.",
     );
     return false;
   }

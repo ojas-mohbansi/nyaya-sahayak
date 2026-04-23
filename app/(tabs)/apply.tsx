@@ -1,14 +1,7 @@
 import { Feather } from "@expo/vector-icons";
 import { router } from "expo-router";
 import React, { useState } from "react";
-import {
-  Platform,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from "react-native";
+import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { ProcedureCard } from "@/components/ProcedureCard";
@@ -18,15 +11,33 @@ import { useFontSizes } from "@/hooks/useFontSizes";
 import { useTranslation } from "@/hooks/useTranslation";
 import { procedures } from "@/data/procedures";
 
-const CATEGORIES_EN = ["All", "Legal Services", "Transparency", "Food Security", "Democracy", "Identity", "Social Welfare", "Employment"];
-const CATEGORIES_HI = ["सभी", "कानूनी सेवाएं", "पारदर्शिता", "खाद्य सुरक्षा", "लोकतंत्र", "पहचान", "सामाजिक कल्याण", "रोज़गार"];
+const CATEGORIES_EN = [
+  "All",
+  "Legal Services",
+  "Transparency",
+  "Food Security",
+  "Democracy",
+  "Identity",
+  "Social Welfare",
+  "Employment",
+];
+const CATEGORIES_HI = [
+  "सभी",
+  "कानूनी सेवाएं",
+  "पारदर्शिता",
+  "खाद्य सुरक्षा",
+  "लोकतंत्र",
+  "पहचान",
+  "सामाजिक कल्याण",
+  "रोज़गार",
+];
 
 export default function ApplyScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const fs = useFontSizes();
   const t = useTranslation();
-  const isHindi = t.tabApply === 'आवेदन';
+  const isHindi = t.tabApply === "आवेदन";
 
   const CATEGORIES = isHindi ? CATEGORIES_HI : CATEGORIES_EN;
   const [selectedCategoryIdx, setSelectedCategoryIdx] = useState(0);

@@ -14,6 +14,14 @@ import { Platform } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
+import { ErrorBoundary } from "@/components/ErrorBoundary";
+import featherFontBase64 from "@/constants/featherFontBase64";
+import { AppSettingsProvider } from "@/context/AppSettingsContext";
+import { BookmarkProvider } from "@/context/BookmarkContext";
+import { EmergencyContactsProvider } from "@/context/EmergencyContactsContext";
+import { RecentlyViewedProvider } from "@/context/RecentlyViewedContext";
+import { initSearchDb } from "@/utils/searchDb";
+
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
     shouldShowAlert: true,
@@ -23,15 +31,6 @@ Notifications.setNotificationHandler({
     shouldShowList: true,
   }),
 });
-
-import featherFontBase64 from "@/constants/featherFontBase64";
-
-import { ErrorBoundary } from "@/components/ErrorBoundary";
-import { AppSettingsProvider } from "@/context/AppSettingsContext";
-import { BookmarkProvider } from "@/context/BookmarkContext";
-import { EmergencyContactsProvider } from "@/context/EmergencyContactsContext";
-import { RecentlyViewedProvider } from "@/context/RecentlyViewedContext";
-import { initSearchDb } from "@/utils/searchDb";
 
 SplashScreen.preventAutoHideAsync();
 
@@ -63,9 +62,8 @@ export default function RootLayout() {
     Inter_700Bold,
     // Feather icon font — embed as base64 data URI on web so it is
     // completely self-contained and never requires a network request.
-    feather: Platform.OS === "web"
-      ? (featherFontBase64 as any)
-      : require("../assets/fonts/Feather.ttf"),
+    feather:
+      Platform.OS === "web" ? (featherFontBase64 as any) : require("../assets/fonts/Feather.ttf"),
   });
 
   useEffect(() => {

@@ -35,7 +35,7 @@ export default function BookmarksScreen() {
       .flatMap((cat) =>
         cat.items
           .filter((item) => bookmarks.includes(item.id))
-          .map((item) => ({ ...item, categoryId: cat.id, kind: "right" as const }))
+          .map((item) => ({ ...item, categoryId: cat.id, kind: "right" as const })),
       )
       .filter((item) => !search.trim() || item.title.toLowerCase().includes(search.toLowerCase()));
   }, [bookmarks, search]);
@@ -47,8 +47,8 @@ export default function BookmarksScreen() {
       .filter((p) => !search.trim() || p.title.toLowerCase().includes(search.toLowerCase()));
   }, [procedureBookmarks, search]);
 
-  type RightItem = typeof bookmarkedRights[number];
-  type ProcItem = typeof bookmarkedProcedures[number];
+  type RightItem = (typeof bookmarkedRights)[number];
+  type ProcItem = (typeof bookmarkedProcedures)[number];
   type CombinedItem = RightItem | ProcItem;
 
   const combinedItems: CombinedItem[] = useMemo(() => {
@@ -104,7 +104,9 @@ export default function BookmarksScreen() {
       </View>
 
       {/* Search Bar */}
-      <View style={[styles.searchWrap, { borderColor: colors.border, backgroundColor: colors.card }]}>
+      <View
+        style={[styles.searchWrap, { borderColor: colors.border, backgroundColor: colors.card }]}
+      >
         <Feather name="search" size={16} color={colors.mutedForeground} />
         <TextInput
           value={search}

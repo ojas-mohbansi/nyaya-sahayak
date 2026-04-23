@@ -62,7 +62,7 @@ One-touch emergency alerts with auto location-sharing to privately-stored contac
 ### Prerequisites
 
 - Node.js 20+
-- pnpm 10+
+- npm 10+
 - Expo Go app on your phone (for device testing)
 
 ### Install
@@ -70,13 +70,13 @@ One-touch emergency alerts with auto location-sharing to privately-stored contac
 ```bash
 git clone https://github.com/ojas-mohbansi/nyaya-sahayak.git
 cd nyaya-sahayak
-pnpm install
+npm install
 ```
 
 ### Run in Development
 
 ```bash
-pnpm run dev
+npm run dev
 ```
 
 This starts the Expo development server. You can then:
@@ -86,8 +86,27 @@ This starts the Expo development server. You can then:
 ### Type Check
 
 ```bash
-pnpm run typecheck
+npm run typecheck
 ```
+
+### Formatting (Prettier)
+
+```bash
+npm run format        # rewrite all files
+npm run format:check  # verify only (used in CI)
+```
+
+Config lives in `.prettierrc.json`. ESLint is configured with `eslint-config-prettier` so style rules don't conflict with lint rules.
+
+### Git hooks (Husky + lint-staged)
+
+A pre-commit hook runs `lint-staged` (Prettier + ESLint `--fix` on staged files) followed by `npm run typecheck`. Husky installs automatically on `npm install` via the `prepare` script. If hooks aren't firing, run:
+
+```bash
+npx husky
+```
+
+To bypass once (not recommended): `git commit --no-verify`.
 
 ---
 
@@ -100,11 +119,19 @@ npm install -g eas-cli
 eas login
 ```
 
-### Android (APK / AAB)
+### Android APK (no Play Store required)
+
+The default Android build profile produces an installable `.apk` (not an `.aab` / Play Store bundle).
 
 ```bash
-eas build --platform android
+# Internal-distribution APK (for testers)
+eas build --platform android --profile preview
+
+# Store-distribution APK
+eas build --platform android --profile production-apk
 ```
+
+When the build finishes, EAS prints a download URL — install the APK on any Android 8.0+ device by enabling "Install from unknown sources".
 
 ### iOS (IPA)
 
@@ -114,7 +141,78 @@ eas build --platform ios
 
 > iOS builds require an Apple Developer account.
 
-See `.github/workflows/build.yml` for the automated CI/CD pipeline.
+### Dependency updates (Dependabot)
+
+`.github/dependabot.yml` opens weekly PRs (Mondays, 06:00 IST) for:
+
+- **npm packages** — grouped into `expo`, `react-native`, `types`, and `lint-format` bundles to reduce PR noise. Major bumps for `react`, `react-native`, and `expo` are ignored (handled manually with the Expo SDK upgrade flow).
+- **GitHub Actions** — keeps `actions/checkout`, `actions/setup-node`, etc. on the latest versions.
+
+PRs are auto-validated by the Quality workflow above, so you can merge confidently once checks are green.
+
+### Quality checks (GitHub Actions)
+
+`.github/workflows/quality.yml` runs on every push to `main` and every pull request:
+
+1. `npm run format:check` — Prettier formatting verification
+2. `npm run lint` — ESLint (must be 0 errors)
+3. `npm run typecheck` — TypeScript
+
+PRs that fail any step are blocked from merging (configure branch protection in your repo settings).
+
+### Automated CI/CD (GitHub Actions)
+
+`.github/workflows/build.yml` runs EAS builds automatically:
+
+- **Push to `main`** (touching app code/config) → kicks off an Android APK build using the `production-apk` profile (fire-and-forget; track progress on [expo.dev](https://expo.dev)).
+- **Manual run** (Actions tab → "EAS Build - Android APK" → "Run workflow") → choose between `preview` and `production-apk` profiles.
+- **Tag push** matching `v*` (e.g. `git tag v1.0.0 && git push --tags`) → builds the APK, waits for completion, downloads it, and attaches it to a GitHub Release for that tag.
+
+Required repository secret:
+
+| Secret | Where to get it |
+| --- | --- |
+| `EXPO_TOKEN` | https://expo.dev/accounts/&lt;you&gt;/settings/access-tokens |
+
+### Changelog
+
+`CHANGELOG.md` is updated automatically by the release script. On each `npm run release:*`:
+
+1. Collects all commits since the previous git tag
+2. Categorizes them by Conventional Commits prefix (`feat:` → Added, `fix:` → Fixed, `chore/refactor/perf/style/build/ci/docs:` → Changed, anything else → Other)
+3. Prepends a new `## [vX.Y.Z] - YYYY-MM-DD` section under `## [Unreleased]`
+4. Includes the full section as the annotated git tag's body and as the GitHub Release notes (replacing auto-generated notes)
+
+Use Conventional Commit prefixes (`feat:`, `fix:`, `chore:`, etc.) for clean categorization.
+
+### Cutting a release
+
+Use the bundled bump script — it updates `app.json` (`expo.version`, `android.versionCode`, `ios.buildNumber`) and `package.json`, commits, tags, and pushes:
+
+```bash
+npm run release:patch    # 1.0.0 → 1.0.1
+npm run release:minor    # 1.0.1 → 1.1.0
+npm run release:major    # 1.1.0 → 2.0.0
+```
+
+Before bumping, the script automatically runs `npm run typecheck` and `npm run lint` so a broken build never gets tagged.
+
+You can run these checks individually anytime:
+
+```bash
+npm run typecheck
+npm run lint
+```
+
+Linting uses `eslint-config-expo` (the official Expo flat config).
+
+Flags:
+
+- `-- --skip-checks` — skip the pre-release typecheck
+- `-- --no-push` — create the commit and tag locally but don't push
+- `-- --no-git` — only edit the version files, skip commit/tag/push entirely
+
+After the tag is pushed, the `release-apk` GitHub Actions job builds the APK and attaches it to the GitHub Release automatically.
 
 ---
 

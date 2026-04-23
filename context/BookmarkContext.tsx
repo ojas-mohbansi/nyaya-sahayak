@@ -42,9 +42,7 @@ export function BookmarkProvider({ children }: { children: React.ReactNode }) {
 
   const toggleBookmark = useCallback((id: string) => {
     setBookmarks((prev) => {
-      const next = prev.includes(id)
-        ? prev.filter((b) => b !== id)
-        : [...prev, id];
+      const next = prev.includes(id) ? prev.filter((b) => b !== id) : [...prev, id];
       AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(next));
       return next;
     });
@@ -52,22 +50,17 @@ export function BookmarkProvider({ children }: { children: React.ReactNode }) {
 
   const toggleProcedureBookmark = useCallback((id: string) => {
     setProcedureBookmarks((prev) => {
-      const next = prev.includes(id)
-        ? prev.filter((b) => b !== id)
-        : [...prev, id];
+      const next = prev.includes(id) ? prev.filter((b) => b !== id) : [...prev, id];
       AsyncStorage.setItem(PROC_STORAGE_KEY, JSON.stringify(next));
       return next;
     });
   }, []);
 
-  const isBookmarked = useCallback(
-    (id: string) => bookmarks.includes(id),
-    [bookmarks]
-  );
+  const isBookmarked = useCallback((id: string) => bookmarks.includes(id), [bookmarks]);
 
   const isProcedureBookmarked = useCallback(
     (id: string) => procedureBookmarks.includes(id),
-    [procedureBookmarks]
+    [procedureBookmarks],
   );
 
   return (

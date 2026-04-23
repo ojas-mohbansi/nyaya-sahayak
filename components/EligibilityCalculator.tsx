@@ -183,10 +183,7 @@ function getWidowResult(answers: Record<string, string>): EligibilityResult {
   };
 }
 
-function computeResult(
-  type: EligibilityType,
-  answers: Record<string, string>
-): EligibilityResult {
+function computeResult(type: EligibilityType, answers: Record<string, string>): EligibilityResult {
   if (type === "old-age-pension") return getOldAgeResult(answers);
   return getWidowResult(answers);
 }
@@ -196,10 +193,7 @@ interface EligibilityCalculatorProps {
   accentColor: string;
 }
 
-export function EligibilityCalculator({
-  type,
-  accentColor,
-}: EligibilityCalculatorProps) {
+export function EligibilityCalculator({ type, accentColor }: EligibilityCalculatorProps) {
   const colors = useColors();
   const questions = type === "old-age-pension" ? OLD_AGE_QUESTIONS : WIDOW_QUESTIONS;
   const [answers, setAnswers] = useState<Record<string, string>>({});
@@ -230,8 +224,8 @@ export function EligibilityCalculator({
   const resultColor = result?.eligible
     ? colors.success
     : result?.partial
-    ? colors.warn
-    : colors.destructive;
+      ? colors.warn
+      : colors.destructive;
 
   return (
     <View
@@ -262,8 +256,8 @@ export function EligibilityCalculator({
             {result
               ? result.title
               : expanded
-              ? `Question ${Math.min(currentQ + 1, questions.length)} of ${questions.length}`
-              : "Check if you qualify"}
+                ? `Question ${Math.min(currentQ + 1, questions.length)} of ${questions.length}`
+                : "Check if you qualify"}
           </Text>
         </View>
         <Feather
@@ -287,19 +281,13 @@ export function EligibilityCalculator({
               >
                 <Feather
                   name={
-                    result.eligible
-                      ? "check-circle"
-                      : result.partial
-                      ? "alert-circle"
-                      : "x-circle"
+                    result.eligible ? "check-circle" : result.partial ? "alert-circle" : "x-circle"
                   }
                   size={22}
                   color={resultColor}
                 />
                 <View style={{ flex: 1 }}>
-                  <Text style={[styles.resultTitle, { color: resultColor }]}>
-                    {result.title}
-                  </Text>
+                  <Text style={[styles.resultTitle, { color: resultColor }]}>{result.title}</Text>
                   {result.amount && (
                     <Text style={[styles.resultAmount, { color: resultColor }]}>
                       {result.amount}
@@ -340,8 +328,8 @@ export function EligibilityCalculator({
                           idx < currentQ
                             ? accentColor
                             : idx === currentQ
-                            ? accentColor + "60"
-                            : colors.border,
+                              ? accentColor + "60"
+                              : colors.border,
                       },
                     ]}
                   />
@@ -385,9 +373,7 @@ export function EligibilityCalculator({
                   style={styles.backBtn}
                 >
                   <Feather name="arrow-left" size={14} color={colors.mutedForeground} />
-                  <Text style={[styles.backBtnText, { color: colors.mutedForeground }]}>
-                    Back
-                  </Text>
+                  <Text style={[styles.backBtnText, { color: colors.mutedForeground }]}>Back</Text>
                 </Pressable>
               )}
             </View>
