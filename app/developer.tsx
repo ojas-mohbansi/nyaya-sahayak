@@ -1,9 +1,10 @@
 import { Feather } from "@expo/vector-icons";
 import * as Clipboard from "expo-clipboard";
+import Constants from "expo-constants";
 import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Animated,
   Linking,
@@ -380,6 +381,39 @@ export default function DeveloperScreen() {
 
   const memberSince = data?.user.created_at ? new Date(data.user.created_at).getFullYear() : null;
 
+  const [buildExpanded, setBuildExpanded] = useState(false);
+  const [buildCopied, setBuildCopied] = useState(false);
+
+  const buildInfo = useMemo(() => {
+    const cfg = Constants.expoConfig;
+    const buildExtra = (cfg?.extra as { build?: Record<string, string> } | undefined)?.build ?? {};
+    const versionCode =
+      Platform.OS === "ios" ? cfg?.ios?.buildNumber : cfg?.android?.versionCode?.toString();
+    return {
+      version: cfg?.version ?? "1.0.0",
+      versionCode: versionCode ?? "—",
+      bundleId:
+        Platform.OS === "ios"
+          ? (cfg?.ios?.bundleIdentifier ?? "—")
+          : (cfg?.android?.package ?? "—"),
+      platform: `${Platform.OS} ${Platform.Version}`,
+      runtime: Constants.executionEnvironment ?? "unknown",
+      commit: buildExtra.shortCommit ?? "dev",
+      profile: buildExtra.profile ?? "local",
+      runner: buildExtra.runner ?? "local",
+      time: buildExtra.time ?? "—",
+    };
+  }, []);
+
+  const handleCopyBuildInfo = useCallback(async () => {
+    const text = Object.entries(buildInfo)
+      .map(([k, v]) => `${k}: ${v}`)
+      .join("\n");
+    await Clipboard.setStringAsync(text);
+    setBuildCopied(true);
+    setTimeout(() => setBuildCopied(false), 2000);
+  }, [buildInfo]);
+
   const topInsets = Platform.OS === "web" ? 67 : insets.top;
 
   return (
@@ -647,6 +681,90 @@ export default function DeveloperScreen() {
               </>
             ) : null}
 
+            {/* ── Build info ── */}
+            <Text
+              style={[styles.sectionTitle, { color: colors.mutedForeground, fontSize: fs.xs }]}
+            >
+              BUILD INFO
+            </Text>
+            <View
+              style={[
+                styles.buildCard,
+                { backgroundColor: colors.card, borderColor: colors.border },
+              ]}
+            >
+              <Pressable
+                onPress={() => setBuildExpanded((v) => !v)}
+                style={({ pressed }) => [styles.buildHeader, { opacity: pressed ? 0.7 : 1 }]}
+              >
+                <View style={styles.buildHeaderLeft}>
+                  <Feather name="git-commit" size={16} color={colors.primary} />
+                  <Text
+                    style={[styles.buildHeaderText, { color: colors.foreground, fontSize: fs.sm }]}
+                  >
+                    {buildInfo.version} · {buildInfo.commit} · {buildInfo.profile}
+                  </Text>
+                </View>
+                <Feather
+                  name={buildExpanded ? "chevron-up" : "chevron-down"}
+                  size={16}
+                  color={colors.mutedForeground}
+                />
+              </Pressable>
+              {buildExpanded ? (
+                <View style={styles.buildBody}>
+                  {Object.entries(buildInfo).map(([key, value]) => (
+                    <View key={key} style={styles.buildRow}>
+                      <Text
+                        style={[
+                          styles.buildKey,
+                          { color: colors.mutedForeground, fontSize: fs.xs },
+                        ]}
+                      >
+                        {key}
+                      </Text>
+                      <Text
+                        style={[
+                          styles.buildValue,
+                          { color: colors.foreground, fontSize: fs.xs },
+                        ]}
+                        numberOfLines={1}
+                      >
+                        {value}
+                      </Text>
+                    </View>
+                  ))}
+                  <Pressable
+                    onPress={handleCopyBuildInfo}
+                    style={({ pressed }) => [
+                      styles.buildCopyBtn,
+                      {
+                        borderColor: colors.border,
+                        opacity: pressed ? 0.7 : 1,
+                      },
+                    ]}
+                  >
+                    <Feather
+                      name={buildCopied ? "check" : "copy"}
+                      size={14}
+                      color={buildCopied ? colors.success : colors.foreground}
+                    />
+                    <Text
+                      style={[
+                        styles.buildCopyText,
+                        {
+                          color: buildCopied ? colors.success : colors.foreground,
+                          fontSize: fs.xs,
+                        },
+                      ]}
+                    >
+                      {buildCopied ? "Copied" : "Copy build info"}
+                    </Text>
+                  </Pressable>
+                </View>
+              ) : null}
+            </View>
+
             {/* ── Footer ── */}
             <View style={styles.footer}>
               <Text style={[styles.footerText, { color: colors.mutedForeground, fontSize: fs.xs }]}>
@@ -812,5 +930,64 @@ const styles = StyleSheet.create({
   },
   footerText: {
     fontFamily: "Inter_400Regular",
+  },
+  buildCard: {
+    borderRadius: 12,
+    borderWidth: 1,
+    overflow: "hidden",
+  },
+  buildHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+  },
+  buildHeaderLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    flex: 1,
+  },
+  buildHeaderText: {
+    fontFamily: "Inter_500Medium",
+    flex: 1,
+  },
+  buildBody: {
+    paddingHorizontal: 14,
+    paddingBottom: 12,
+    gap: 6,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: "rgba(0,0,0,0.08)",
+    paddingTop: 10,
+  },
+  buildRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    gap: 12,
+  },
+  buildKey: {
+    fontFamily: "Inter_500Medium",
+    textTransform: "uppercase",
+    letterSpacing: 0.4,
+  },
+  buildValue: {
+    fontFamily: "Inter_400Regular",
+    flex: 1,
+    textAlign: "right",
+  },
+  buildCopyBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    paddingVertical: 8,
+    borderRadius: 8,
+    borderWidth: 1,
+    marginTop: 4,
+  },
+  buildCopyText: {
+    fontFamily: "Inter_500Medium",
   },
 });

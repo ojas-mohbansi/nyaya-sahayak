@@ -112,26 +112,68 @@ To bypass once (not recommended): `git commit --no-verify`.
 
 ## Building for Production
 
-This project uses [EAS Build](https://docs.expo.dev/build/introduction/) for creating production binaries. You will need an [Expo account](https://expo.dev) and the EAS CLI installed.
+You have **three** ways to produce a universal Android APK (one file, all CPU architectures: `arm64-v8a`, `armeabi-v7a`, `x86`, `x86_64`). All three produce a binary that installs on any Android 8.0+ device.
+
+| Method | Time | Cost | When to use |
+| --- | --- | --- | --- |
+| EAS cloud (`eas build`) | 5–60 min (queue) | EAS minutes | Default. Hands-off, signed for store. |
+| Local (your machine, `--local`) | 5–10 min | Free | Skip EAS queue; need JDK 17 + Android SDK. |
+| GitHub Actions (Gradle, no EAS) | ~15 min | Free (public repo) | Skip EAS entirely; great for CI. |
+
+### Convenience npm scripts
+
+```bash
+npm run build:apk:cloud   # EAS cloud, fire-and-forget
+npm run build:apk:local   # local Gradle build → ./build/nyaya-sahayak.apk
+npm run build:apk:both    # both at once — first one done wins
+```
+
+### 1. EAS cloud build
 
 ```bash
 npm install -g eas-cli
 eas login
-```
 
-### Android APK (no Play Store required)
-
-The default Android build profile produces an installable `.apk` (not an `.aab` / Play Store bundle).
-
-```bash
 # Internal-distribution APK (for testers)
 eas build --platform android --profile preview
 
-# Store-distribution APK
+# Store-distribution APK (universal)
 eas build --platform android --profile production-apk
 ```
 
 When the build finishes, EAS prints a download URL — install the APK on any Android 8.0+ device by enabling "Install from unknown sources".
+
+### 2. Local build with EAS CLI
+
+Builds the same APK on your own machine — no queue, no EAS minutes consumed.
+
+**Prerequisites:** JDK 17 + Android SDK (Android Studio installs both), and `eas-cli` logged in.
+
+```bash
+npm run build:apk:local
+# → outputs ./build/nyaya-sahayak.apk
+```
+
+Under the hood this runs `eas build -p android --profile production-apk --local`.
+
+### 3. GitHub Actions (no EAS at all)
+
+`.github/workflows/local-build-apk.yml` builds the APK directly with Gradle on a free GitHub-hosted runner. Trigger from the **Actions** tab → "Local Build - Android APK (no EAS)" → "Run workflow". The APK is attached as a workflow artifact and kept for 30 days.
+
+This route is useful if you've exhausted EAS minutes or want a free CI pipeline for sideload-only builds. The APK is signed with the default debug keystore — perfect for sideloading and testing, **not** for Play Store submission.
+
+### Build metadata baked into every APK
+
+`app.config.js` injects build provenance into `Constants.expoConfig.extra.build` at build time:
+
+| Field | Source |
+| --- | --- |
+| `commitHash` / `shortCommit` | `EAS_BUILD_GIT_COMMIT_HASH` → `GITHUB_SHA` → local `git rev-parse` → `dev` |
+| `profile` | `EAS_BUILD_PROFILE` (e.g. `production-apk`) or `local` |
+| `runner` | `eas-build`, `github-actions`, or `local` |
+| `time` | ISO timestamp when the JS bundle was built |
+
+The Settings screen renders `version (versionCode)` automatically. The Developer screen has a tap-to-expand **Build info** card that shows everything above and lets users copy it for bug reports.
 
 ### iOS (IPA)
 

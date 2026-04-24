@@ -1,4 +1,5 @@
 import { Feather } from "@expo/vector-icons";
+import Constants from "expo-constants";
 import { LinearGradient } from "expo-linear-gradient";
 import * as Notifications from "expo-notifications";
 import { router } from "expo-router";
@@ -82,6 +83,13 @@ export default function SettingsScreen() {
 
   const isHindi = settings.language === "Hindi";
   const isEnglish = settings.language === "English";
+
+  const appVersion = Constants.expoConfig?.version ?? "1.0.0";
+  const buildNumber =
+    Platform.OS === "ios"
+      ? Constants.expoConfig?.ios?.buildNumber
+      : Constants.expoConfig?.android?.versionCode?.toString();
+  const appVersionLabel = buildNumber ? `${appVersion} (${buildNumber})` : appVersion;
 
   const TEXT_SIZES = [
     { key: "Small" as const, label: t.small },
@@ -511,7 +519,7 @@ export default function SettingsScreen() {
               </Text>
             </View>
             <Text style={[styles.versionText, { color: colors.mutedForeground, fontSize: fs.sm }]}>
-              1.0.0
+              {appVersionLabel}
             </Text>
           </View>
         </View>

@@ -13,6 +13,9 @@
     "release:patch": "node scripts/bump-version.mjs patch",
     "release:minor": "node scripts/bump-version.mjs minor",
     "release:major": "node scripts/bump-version.mjs major",
+    "build:apk:local": "eas build -p android --profile production-apk --local --output ./build/nyaya-sahayak.apk",
+    "build:apk:cloud": "eas build -p android --profile production-apk --non-interactive --no-wait",
+    "build:apk:both": "npm run build:apk:cloud && npm run build:apk:local",
     "prepare": "husky"
   },
   "lint-staged": {
